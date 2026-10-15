@@ -25,6 +25,7 @@ import {
   Award,
   Crown,
   Compass,
+  Sliders,
 } from 'lucide-react';
 import {
   PrimaryCategory,
@@ -35,6 +36,8 @@ import {
 import { LanguageCode } from './types';
 import {
   getWhatsAppSequenceForCategory,
+  getTrailSequenceForCategory,
+  BeginnerTrailSegmentId,
   SEQUENCE_RATIONALE,
 } from './personalizedSequences';
 import { WHATSAPP_LESSONS_CATALOG, WhatsAppLessonMeta } from './lessonCatalog';
@@ -50,20 +53,48 @@ interface WhatsAppPathScreenProps {
   skippedSegments?: WhatsAppSegmentId[];
   currentSegmentId?: WhatsAppSegmentId;
   learnerName?: string;
-  onSelectLesson: (lessonId: WhatsAppSegmentId) => void;
+  onSelectLesson: (lessonId: WhatsAppSegmentId | 'phone_basics') => void;
   onBack: () => void;
   onOpenDoubt?: (context?: string) => void;
+  isPhoneBasicsCompleted?: boolean;
 }
+
+const PHONE_BASICS_META: WhatsAppLessonMeta = {
+  id: 'phone_basics' as any,
+  code: 'M1',
+  number: 1,
+  title: {
+    en: '1. Smartphone Basics',
+    ta: '1. ஸ்மார்ட்போன் அடிப்படைகள்',
+    hi: '1. स्मार्टफोन बेसिक्स',
+  },
+  subtitle: {
+    en: 'Wi-Fi, Mobile Internet, Hotspot & Torch',
+    ta: 'வைஃபை, மொபைல் டேட்டா, ஹாட்ஸ்பாட் & டார்ச்',
+    hi: 'वाई-फाई, मोबाइल इंटरनेट, हॉटस्पॉट और टॉर्च',
+  },
+  description: {
+    en: "Let's start with your phone! Learn Wi-Fi, mobile internet, hotspot and torch before moving on to WhatsApp.",
+    ta: 'உங்கள் போனிலிருந்து தொடங்குவோம்! வாட்ஸ்அப்பிற்குச் செல்வதற்கு முன் வைஃபை, மொபைல் இன்டர்நெட், ஹாட்ஸ்பாட் மற்றும் டார்ச் பற்றி அறிந்துகொள்ளுங்கள்.',
+    hi: 'आइए आपके फोन से शुरुआत करें! व्हाट्सएप पर जाने से पहले वाई-फाई, मोबाइल इंटरनेट, हॉटस्पॉट और टॉर्च सीखें।',
+  },
+  durationMin: 5,
+  skills: {
+    en: ['Quick Settings', 'Mobile Data', 'Torch', 'Wi-Fi', 'Hotspot', 'Sound Mode'],
+    ta: ['விரைவு அமைப்புகள்', 'மொபைல் டேட்டா', 'டார்ச்', 'வைஃபை', 'ஹாட்ஸ்பாட்'],
+    hi: ['क्विक सेटिंग्स', 'मोबाइल डेटा', 'टॉर्च', 'वाई-फाई', 'हॉटस्पॉट'],
+  },
+};
 
 const UI_TEXT = {
   en: {
-    heading: 'WhatsApp Adventure',
-    adventureTheme: 'Communication Adventure',
-    subheading: 'Master everyday messaging, voice notes, photos, calls, and scam defense on an interactive learning trail',
+    heading: 'Digital Beginner Adventure',
+    adventureTheme: 'Smartphone & Communication Adventure',
+    subheading: 'Master phone settings (Wi-Fi, mobile data, hotspot, torch) and everyday WhatsApp messaging on an interactive learning trail',
     backToDashboard: 'Back to Dashboard',
-    completedCount: '{completed} of 8 completed',
+    completedCount: '{completed} of {total} completed',
     skippedBadge: '{skipped} Skipped (Tap to retry)',
-    allDoneBanner: '🎉 Outstanding! You have completed all 8 WhatsApp lessons!',
+    allDoneBanner: '🎉 Outstanding! You have completed all {total} learning modules!',
     resumeActive: 'Continue Adventure',
     startLearning: 'Start Lesson',
     reviewLesson: 'Review Lesson',
@@ -72,24 +103,24 @@ const UI_TEXT = {
     statusCurrent: 'In Progress',
     statusSkipped: 'Skipped',
     statusNotStarted: 'Not Started',
-    selviAdvice: 'Welcome {name} to your Communication Adventure! Follow the winding trail below to practice real WhatsApp skills step-by-step.',
+    selviAdvice: 'Welcome {name}! Let\'s start with your phone! Learn Wi-Fi, mobile internet, hotspot and torch before moving on to WhatsApp.',
     trackBadge: 'Personalized Trail',
     minuteShort: 'min',
     skillsLabel: 'Skills',
     milestoneMid: 'Halfway Explorer Checkpoint!',
     milestoneFinal: 'Final Scam Defense Milestone!',
     askSelvi: 'Ask Selvi',
-    stepPill: 'Step {num} of 8',
+    stepPill: 'Step {num} of {total}',
     continueCta: 'Continue to Step {num}',
   },
   ta: {
-    heading: 'வாட்ஸ்அப் சாகசப் பயணம்',
-    adventureTheme: 'தகவல் தொடர்பு சாகசம் (Communication Adventure)',
-    subheading: 'செய்திகள், குரல் குறிப்புகள், படங்கள், அழைப்புகள் மற்றும் மோசடிப் பாதுகாப்பை விளையாட்டு வழியில் கற்கலாம்',
+    heading: 'டிஜிட்டல் தொடக்கநிலை சாகசப் பயணம்',
+    adventureTheme: 'ஸ்மார்ட்போன் & வாட்ஸ்அப் சாகசம்',
+    subheading: 'போன் அமைப்புகள் (வைஃபை, மொபைல் டேட்டா, டார்ச், ஹாட்ஸ்பாட்) மற்றும் வாட்ஸ்அப் பயிற்சிகளை விளையாட்டு வழியில் கற்கலாம்',
     backToDashboard: 'டாஷ்போர்டுக்கு திரும்பு',
-    completedCount: '8-ல் {completed} பாடங்கள் முடிந்தது',
+    completedCount: '{total}-ல் {completed} பாடங்கள் முடிந்தது',
     skippedBadge: '{skipped} தவிர்க்கப்பட்டது (மீண்டும் பழகலாம்)',
-    allDoneBanner: '🎉 அற்புதம்! அனைத்து 8 வாட்ஸ்அப் பாடங்களையும் வெற்றிகரமாக முடித்துவிட்டீர்கள்!',
+    allDoneBanner: '🎉 அற்புதம்! அனைத்து {total} பாடங்களையும் வெற்றிகரமாக முடித்துவிட்டீர்கள்!',
     resumeActive: 'சாகசத்தைத் தொடரவும்',
     startLearning: 'பாடத்தைத் தொடங்கு',
     reviewLesson: 'மீண்டும் பார்',
@@ -98,24 +129,24 @@ const UI_TEXT = {
     statusCurrent: 'செயலில் உள்ளது',
     statusSkipped: 'தவிர்க்கப்பட்டது',
     statusNotStarted: 'தொடங்கவில்லை',
-    selviAdvice: 'வணக்கம் {name}! உங்கள் வாட்ஸ்அப் தகவல் தொடர்பு சாகசத்திற்கு நல்வரவு! கீழே உள்ள பாதையில் உள்ள ஒவ்வொரு கட்டத்தையும் தொட்டுப் பழகத் தொடங்குங்கள்.',
+    selviAdvice: 'வணக்கம் {name}! உங்கள் போனிலிருந்து தொடங்குவோம்! வாட்ஸ்அப்பிற்குச் செல்வதற்கு முன் வைஃபை, மொபைல் இன்டர்நெட், ஹாட்ஸ்பாட் மற்றும் டார்ச் பற்றி அறிந்துகொள்ளுங்கள்.',
     trackBadge: 'பரிந்துரைக்கப்பட்ட பாதை',
     minuteShort: 'நிமிடம்',
     skillsLabel: 'பயிற்சிகள்',
     milestoneMid: 'பாதி வழி எட்டிய மைல்கல்!',
     milestoneFinal: 'இறுதி பாதுகாப்பு மைல்கல்!',
     askSelvi: 'செல்வி உதவி',
-    stepPill: 'படி {num} / 8',
+    stepPill: 'படி {num} / {total}',
     continueCta: 'படி {num}-க்குச் செல்',
   },
   hi: {
-    heading: 'व्हाट्सएप एडवेंचर',
-    adventureTheme: 'संचार रोमांच यात्रा (Communication Adventure)',
-    subheading: 'चैटिंग, वॉयस नोट्स, फोटो, कॉल्स और फ्रॉड से बचाव एक मजेदार इंटरेक्टिव ट्रेल पर सीखें',
+    heading: 'डिजिटल शुरुआती एडवेंचर',
+    adventureTheme: 'स्मार्टफोन और व्हाट्सएप एडवेंचर',
+    subheading: 'फोन सेटिंग्स (वाई-फाई, मोबाइल डेटा, हॉटस्पॉट, टॉर्च) और व्हाट्सएप संचार एक मजेदार ट्रेल पर सीखें',
     backToDashboard: 'डैशबोर्ड पर वापस',
-    completedCount: '8 में से {completed} पाठ पूरे हुए',
+    completedCount: '{total} में से {completed} पाठ पूरे हुए',
     skippedBadge: '{skipped} छोड़े गए (पुनः प्रयास करें)',
-    allDoneBanner: '🎉 शाबाश! आपने सभी 8 व्हाट्सएप पाठ सफलतापूर्वक पूरे कर लिए हैं!',
+    allDoneBanner: '🎉 शाबाश! आपने सभी {total} पाठ सफलतापूर्वक पूरे कर लिए हैं!',
     resumeActive: 'एडवेंचर जारी रखें',
     startLearning: 'पाठ शुरू करें',
     reviewLesson: 'फिर से देखें',
@@ -124,19 +155,20 @@ const UI_TEXT = {
     statusCurrent: 'चालू',
     statusSkipped: 'छोड़ा गया',
     statusNotStarted: 'शुरू नहीं हुआ',
-    selviAdvice: 'नमस्ते {name}! आपके व्हाट्सएप कम्युनिकेशन एडवेंचर में स्वागत है! नीचे दी गई पगडंडी पर चलकर अभ्यास शुरू करें।',
+    selviAdvice: 'नमस्ते {name}! आइए आपके फोन से शुरुआत करें! व्हाट्सएप पर जाने से पहले वाई-फाई, मोबाइल इंटरनेट, हॉटस्पॉट और टॉर्च सीखें।',
     trackBadge: 'निजीकृत एडवेंचर',
     minuteShort: 'मिनट',
     skillsLabel: 'कौशल',
     milestoneMid: 'आधा सफर पूरा - शाबाश!',
     milestoneFinal: 'अंतिम सुरक्षा माइलस्टोन!',
     askSelvi: 'सेलवी सहायता',
-    stepPill: 'कदम {num} / 8',
+    stepPill: 'कदम {num} / {total}',
     continueCta: 'कदम {num} शुरू करें',
   },
 };
 
-const LESSON_ICONS: Record<WhatsAppSegmentId, React.ReactNode> = {
+const LESSON_ICONS: Record<string, React.ReactNode> = {
+  phone_basics: <Sliders className="w-7 h-7 sm:w-8 sm:h-8" />,
   W0: <Smartphone className="w-7 h-7 sm:w-8 sm:h-8" />,
   W1: <UserPlus className="w-7 h-7 sm:w-8 sm:h-8" />,
   W2: <MessageSquare className="w-7 h-7 sm:w-8 sm:h-8" />,
@@ -147,17 +179,17 @@ const LESSON_ICONS: Record<WhatsAppSegmentId, React.ReactNode> = {
   W7: <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8" />,
 };
 
-// Winding trail horizontal offsets across desktop and mobile
-// Alternates gently left and right like Duolingo's island trail
+// Winding trail horizontal offsets across desktop and mobile (9-node trail)
 const TRAIL_OFFSETS = [
-  { desktopX: 0, mobileX: 0, side: 'center' },      // Node 0 (W0): Start Center
-  { desktopX: -120, mobileX: -36, side: 'left' },   // Node 1 (W1): Left
-  { desktopX: -60, mobileX: -18, side: 'left' },    // Node 2 (W2): Soft Left
-  { desktopX: 60, mobileX: 18, side: 'right' },     // Node 3 (W3): Soft Right
-  { desktopX: 130, mobileX: 38, side: 'right' },    // Node 4 (W4): Deep Right
-  { desktopX: 30, mobileX: 10, side: 'center' },    // Node 5 (W6): Back Center
-  { desktopX: -100, mobileX: -30, side: 'left' },   // Node 6 (W5): Left
-  { desktopX: 0, mobileX: 0, side: 'center' },      // Node 7 (W7): Trophy Finish Center
+  { desktopX: 0, mobileX: 0, side: 'center' },      // Node 0 (phone_basics): Center Start
+  { desktopX: -110, mobileX: -32, side: 'left' },   // Node 1 (W0): Left
+  { desktopX: -60, mobileX: -16, side: 'left' },    // Node 2 (W1): Soft Left
+  { desktopX: 50, mobileX: 14, side: 'right' },     // Node 3 (W2): Soft Right
+  { desktopX: 120, mobileX: 34, side: 'right' },    // Node 4 (W3): Deep Right
+  { desktopX: 30, mobileX: 10, side: 'center' },    // Node 5 (W4): Back Center
+  { desktopX: -70, mobileX: -20, side: 'left' },    // Node 6 (W6): Left
+  { desktopX: -110, mobileX: -30, side: 'left' },   // Node 7 (W5): Deep Left
+  { desktopX: 0, mobileX: 0, side: 'center' },      // Node 8 (W7): Trophy Finish Center
 ];
 
 export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
@@ -171,6 +203,7 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
   onSelectLesson,
   onBack,
   onOpenDoubt,
+  isPhoneBasicsCompleted = false,
 }) => {
   const [isSelviOpen, setIsSelviOpen] = useState<boolean>(false);
   const [isMascotSpeaking, setIsMascotSpeaking] = useState<boolean>(false);
@@ -178,7 +211,9 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
   const langKey = language.startsWith('ta') ? 'ta' : language.startsWith('hi') ? 'hi' : 'en';
   const t = UI_TEXT[langKey] || UI_TEXT.en;
 
-  const sequence = getWhatsAppSequenceForCategory(category);
+  const sequence = getTrailSequenceForCategory(category);
+  const totalModules = sequence.length;
+  const isPhoneBasicsDone = Boolean(isPhoneBasicsCompleted);
   const rationale =
     category && SEQUENCE_RATIONALE[category]
       ? SEQUENCE_RATIONALE[category][langKey]
@@ -186,16 +221,26 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
 
   const completedList = progress?.completed_segments || completedSegments;
   const skippedList = progress?.skipped_segments || skippedSegments;
-  const completedCount = completedList.length;
-  const progressPercent = Math.min(100, Math.round((completedCount / 8) * 100));
-  const isAllCompleted = completedCount >= 8;
+  const completedCount =
+    (isPhoneBasicsDone && sequence.includes('phone_basics') ? 1 : 0) +
+    completedList.filter((s) => (s as string) !== 'phone_basics').length;
+  const progressPercent = Math.min(100, Math.round((completedCount / totalModules) * 100));
+  const isAllCompleted = completedCount >= totalModules;
 
   // Active / recommended next node
-  const activeSegmentId =
-    currentSegmentId ||
-    sequence.find((s) => !completedList.includes(s) && !skippedList.includes(s)) ||
-    sequence.find((s) => !completedList.includes(s)) ||
-    sequence[0];
+  const activeSegmentId: BeginnerTrailSegmentId =
+    (!isPhoneBasicsDone && sequence.includes('phone_basics'))
+      ? 'phone_basics'
+      : currentSegmentId ||
+        sequence.find((s) => {
+          if (s === 'phone_basics') return !isPhoneBasicsDone;
+          return !completedList.includes(s as any) && !skippedList.includes(s as any);
+        }) ||
+        sequence.find((s) => {
+          if (s === 'phone_basics') return !isPhoneBasicsDone;
+          return !completedList.includes(s as any);
+        }) ||
+        sequence[0];
 
   const activeIndex = sequence.indexOf(activeSegmentId);
   const activeStepNum = activeIndex >= 0 ? activeIndex + 1 : 1;
@@ -332,7 +377,7 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
               <div className="flex items-center justify-between text-xs font-black">
                 <span className="text-amber-300 flex items-center gap-1.5">
                   <Trophy className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span>{t.completedCount.replace('{completed}', completedCount.toString())}</span>
+                  <span>{t.completedCount.replace('{completed}', completedCount.toString()).replace('{total}', totalModules.toString())}</span>
                 </span>
                 <span className="text-emerald-200 font-mono text-xs">{progressPercent}%</span>
               </div>
@@ -347,7 +392,12 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
             </div>
 
             {/* Primary Action Button */}
-            {!isAllCompleted && (
+            {isAllCompleted ? (
+              <div className="px-4 py-2 rounded-2xl bg-amber-400 text-slate-950 font-black text-xs sm:text-sm shadow-md flex items-center gap-1.5 border border-white shrink-0">
+                <Crown className="w-4 h-4 fill-slate-950" />
+                <span>{t.allDoneBanner.replace('{total}', totalModules.toString())}</span>
+              </div>
+            ) : (
               <button
                 onClick={() => {
                   voiceManager.stop();
@@ -356,7 +406,11 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
                 className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm shadow-xl transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 border border-amber-200"
               >
                 <Play className="w-4 h-4 fill-slate-950" />
-                <span>{t.continueCta.replace('{num}', String(activeStepNum))}</span>
+                <span>
+                  {activeSegmentId === 'phone_basics'
+                    ? (langKey === 'ta' ? 'ஸ்மார்ட்போன் அடிப்படைகளைத் தொடங்கு' : langKey === 'hi' ? 'स्मार्टफोन बेसिक्स शुरू करें' : 'Start Smartphone Basics')
+                    : t.continueCta.replace('{num}', String(activeStepNum))}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -367,26 +421,32 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
         <section className="w-full max-w-3xl flex flex-col items-center py-4 relative">
           <div className="w-full space-y-10 sm:space-y-14 relative">
             {sequence.map((segmentId, index) => {
-              const meta: WhatsAppLessonMeta =
-                WHATSAPP_LESSONS_CATALOG[segmentId] || {
-                  id: segmentId,
-                  code: segmentId,
-                  number: index,
-                  title: { en: `Lesson ${segmentId}`, ta: `பாடம் ${segmentId}`, hi: `पाठ ${segmentId}` },
-                  subtitle: { en: `Lesson ${segmentId}`, ta: `பாடம் ${segmentId}`, hi: `पाठ ${segmentId}` },
-                  description: { en: '', ta: '', hi: '' },
-                  durationMin: 3,
-                  skills: { en: [], ta: [], hi: [] },
-                };
+              const isPhoneBasics = segmentId === 'phone_basics';
+              const meta: WhatsAppLessonMeta = isPhoneBasics
+                ? PHONE_BASICS_META
+                : (WHATSAPP_LESSONS_CATALOG[segmentId as WhatsAppSegmentId] || {
+                    id: segmentId as any,
+                    code: segmentId,
+                    number: index + 1,
+                    title: { en: `Lesson ${segmentId}`, ta: `பாடம் ${segmentId}`, hi: `पाठ ${segmentId}` },
+                    subtitle: { en: `Lesson ${segmentId}`, ta: `பாடம் ${segmentId}`, hi: `पाठ ${segmentId}` },
+                    description: { en: '', ta: '', hi: '' },
+                    durationMin: 3,
+                    skills: { en: [], ta: [], hi: [] },
+                  });
 
-              const isCompleted = completedList.includes(segmentId);
-              const isSkipped = skippedList.includes(segmentId);
+              const isCompleted = isPhoneBasics
+                ? isPhoneBasicsDone
+                : completedList.includes(segmentId as WhatsAppSegmentId);
+              const isSkipped = isPhoneBasics
+                ? false
+                : skippedList.includes(segmentId as WhatsAppSegmentId);
               const isActive = segmentId === activeSegmentId && !isCompleted;
               const isNotStarted = !isCompleted && !isSkipped && !isActive;
 
               const sequenceNum = index + 1;
-              const isMidpoint = index === 3;
-              const isFinal = index === 7;
+              const isMidpoint = index === 4;
+              const isFinal = index === totalModules - 1;
               const offset = TRAIL_OFFSETS[index % TRAIL_OFFSETS.length];
 
               const actionLabel = isCompleted
@@ -394,7 +454,7 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
                 : isSkipped
                 ? t.retryLesson
                 : isActive
-                ? t.startLearning
+                ? (isPhoneBasics ? (langKey === 'ta' ? 'பாடத்தைத் தொடங்கு' : 'Start Lesson') : t.startLearning)
                 : t.startLearning;
 
               return (
@@ -511,7 +571,7 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
                       >
                         <div className="flex items-center justify-between gap-1 mb-1">
                           <span className="text-[10px] font-black uppercase tracking-wider text-teal-800 bg-teal-100 px-2 py-0.5 rounded-md">
-                            {meta.code} · {t.stepPill.replace('{num}', String(sequenceNum))}
+                            {meta.code} · {t.stepPill.replace('{num}', String(sequenceNum)).replace('{total}', String(totalModules))}
                           </span>
 
                           <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">

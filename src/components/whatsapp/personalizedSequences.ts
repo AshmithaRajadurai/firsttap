@@ -50,6 +50,8 @@ export const SEQUENCE_RATIONALE: Record<
   },
 };
 
+export type BeginnerTrailSegmentId = 'phone_basics' | WhatsAppSegmentId;
+
 /**
  * Returns the recommended sequence for a given category.
  * Defaults to Digital Beginner sequence if category is undefined.
@@ -61,6 +63,20 @@ export function getWhatsAppSequenceForCategory(
     return CATEGORY_WHATSAPP_SEQUENCES.DIGITAL_BEGINNER;
   }
   return [...CATEGORY_WHATSAPP_SEQUENCES[category]];
+}
+
+/**
+ * Returns the full learning trail sequence for the category.
+ * For DIGITAL_BEGINNER, prepends 'phone_basics' as Module 1, giving 9 total modules.
+ */
+export function getTrailSequenceForCategory(
+  category?: PrimaryCategory | null
+): BeginnerTrailSegmentId[] {
+  const waSeq = getWhatsAppSequenceForCategory(category);
+  if (!category || category === 'DIGITAL_BEGINNER') {
+    return ['phone_basics', ...waSeq];
+  }
+  return waSeq;
 }
 
 /**
