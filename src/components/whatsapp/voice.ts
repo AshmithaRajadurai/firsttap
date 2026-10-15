@@ -1,3 +1,5 @@
+import { configureFemaleUtterance, CANONICAL_FEMALE_SPEAKER } from '@/lib/voice/femaleVoice';
+
 export type LanguageCode = 'ta' | 'hi' | 'en';
 
 export type VoiceStateListener = (hasTamilVoice: boolean) => void;
@@ -10,6 +12,7 @@ class VoiceManager {
   private activeAudio: HTMLAudioElement | null = null;
   private listeners: Set<VoiceStateListener> = new Set();
   private speechCounter: number = 0;
+  private audioCache: Map<string, string> = new Map();
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -41,49 +44,7 @@ class VoiceManager {
   }
 
   public hasTamilVoice(): boolean {
-    // We have server-side Sarvam AI TTS for Tamil, so Tamil voice is always available
     return true;
-  }
-
-  public getTamilVoice(): SpeechSynthesisVoice | null {
-    if (this.voices.length === 0) {
-      this.loadVoices();
-    }
-    return (
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l === 'ta-in' || l.startsWith('ta');
-      }) || null
-    );
-  }
-
-  public getHindiVoice(): SpeechSynthesisVoice | null {
-    if (this.voices.length === 0) {
-      this.loadVoices();
-    }
-    return (
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l === 'hi-in' || l.startsWith('hi');
-      }) || null
-    );
-  }
-
-  public getEnglishVoice(): SpeechSynthesisVoice | null {
-    if (this.voices.length === 0) {
-      this.loadVoices();
-    }
-    return (
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l === 'en-in';
-      }) ||
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l.startsWith('en');
-      }) ||
-      null
-    );
   }
 
   public setMuted(muted: boolean) {
@@ -126,7 +87,7 @@ class VoiceManager {
     lang: LanguageCode = 'en',
     options?: { fallbackTimeoutMs?: number; cancelPrevious?: boolean }
   ): Promise<void> {
-    if (this.isMuted || typeof window === 'undefined') {
+    if (this.isMuted || typeof window === 'undefined' || !text.trim()) {
       return;
     }
 
@@ -135,56 +96,68 @@ class VoiceManager {
     }
 
     const currentSpeechId = ++this.speechCounter;
+    const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+    const cacheKey = `${bcp47}:${CANONICAL_FEMALE_SPEAKER}:${text}`;
 
-    // 1. For Tamil, try Sarvam AI Bulbul v3 backend route first (Female speaker: ishita)
-    if (lang === 'ta') {
+    // 1. Check audio cache or fetch from Sarvam AI Bulbul TTS route (Female speaker: ishita)
+    let audioUri = this.audioCache.get(cacheKey);
+
+    if (!audioUri) {
       try {
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text,
-            language: 'ta-IN',
-            speaker: 'ishita',
+            language: bcp47,
+            language_code: bcp47,
+            speaker: CANONICAL_FEMALE_SPEAKER,
           }),
         });
 
         if (res.ok && currentSpeechId === this.speechCounter && !this.isMuted) {
           const data = await res.json();
-          if (data.audioBase64) {
-            const format = data.format || 'audio/wav';
-            const audioUri = `data:${format};base64,${data.audioBase64}`;
-            return new Promise<void>((resolve) => {
-              const audio = new Audio(audioUri);
-              this.activeAudio = audio;
-
-              const cleanup = () => {
-                if (this.activeAudio === audio) {
-                  this.activeAudio = null;
-                }
-                resolve();
-              };
-
-              audio.onended = cleanup;
-              audio.onerror = () => {
-                cleanup();
-              };
-
-              audio.play().catch(() => {
-                // If autoplay blocked, finish gracefully
-                cleanup();
-              });
-            });
+          if (data.audioDataUrl) {
+            audioUri = data.audioDataUrl;
+          } else if (data.audioBase64) {
+            const format = data.mimeType || data.format || 'audio/wav';
+            audioUri = `data:${format};base64,${data.audioBase64}`;
+          }
+          if (audioUri) {
+            this.audioCache.set(cacheKey, audioUri);
           }
         }
       } catch (err) {
-        console.warn('[WhatsApp Voice] Sarvam TTS route failed, trying WebSpeech fallback:', err);
+        console.warn('[WhatsApp Voice] AI TTS route failed, trying WebSpeech fallback:', err);
       }
     }
 
-    // 2. Web Speech API Fallback for English, Hindi, or failed Tamil
+    if (audioUri && currentSpeechId === this.speechCounter && !this.isMuted) {
+      return new Promise<void>((resolve) => {
+        const audio = new Audio(audioUri);
+        this.activeAudio = audio;
+
+        const cleanup = () => {
+          if (this.activeAudio === audio) {
+            this.activeAudio = null;
+          }
+          resolve();
+        };
+
+        audio.onended = cleanup;
+        audio.onerror = () => {
+          cleanup();
+        };
+
+        audio.play().catch(() => {
+          cleanup();
+        });
+      });
+    }
+
+    // 2. Web Speech API Fallback with guaranteed female voice tuning
     return new Promise((resolve) => {
-      if (!this.synth || this.isMuted) {
+      if (!this.synth || this.isMuted || currentSpeechId !== this.speechCounter) {
         resolve();
         return;
       }
@@ -211,24 +184,7 @@ class VoiceManager {
         const utterance = new SpeechSynthesisUtterance(text);
         this.activeUtterance = utterance;
 
-        if (lang === 'ta') {
-          utterance.lang = 'ta-IN';
-          const taVoice = this.getTamilVoice();
-          if (taVoice) utterance.voice = taVoice;
-          utterance.rate = 0.88;
-        } else if (lang === 'hi') {
-          utterance.lang = 'hi-IN';
-          const hiVoice = this.getHindiVoice();
-          if (hiVoice) utterance.voice = hiVoice;
-          utterance.rate = 0.90;
-        } else {
-          utterance.lang = 'en-IN';
-          const enVoice = this.getEnglishVoice();
-          if (enVoice) utterance.voice = enVoice;
-          utterance.rate = 0.90;
-        }
-
-        utterance.pitch = 1.0;
+        configureFemaleUtterance(utterance, bcp47, this.voices);
 
         utterance.onend = () => {
           clearTimeout(timer);

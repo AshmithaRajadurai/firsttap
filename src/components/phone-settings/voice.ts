@@ -1,4 +1,5 @@
 import { LanguageCode } from './types';
+import { configureFemaleUtterance, CANONICAL_FEMALE_SPEAKER } from '@/lib/voice/femaleVoice';
 
 class PhoneSettingsVoiceManager {
   private synth: SpeechSynthesis | null = null;
@@ -282,17 +283,23 @@ class PhoneSettingsVoiceManager {
     this.stop();
     this.notifySpeaking(true);
 
-    const cacheKey = `${lang}:${text}`;
+    const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+    const cacheKey = `${bcp47}:${CANONICAL_FEMALE_SPEAKER}:${text}`;
     let audioUrl = this.audioCache.get(cacheKey);
 
     // Try AI TTS from backend first
     if (!audioUrl) {
       try {
         this.currentAbortController = new AbortController();
-        const res = await fetch('/api/synthesize-speech', {
+        const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, language: lang }),
+          body: JSON.stringify({
+            text,
+            language: bcp47,
+            language_code: bcp47,
+            speaker: CANONICAL_FEMALE_SPEAKER,
+          }),
           signal: this.currentAbortController.signal,
         });
 
@@ -300,7 +307,12 @@ class PhoneSettingsVoiceManager {
           const data = await res.json();
           if (data.audioDataUrl) {
             audioUrl = data.audioDataUrl;
-            this.audioCache.set(cacheKey, audioUrl!);
+          } else if (data.audioBase64) {
+            const format = data.mimeType || data.format || 'audio/wav';
+            audioUrl = `data:${format};base64,${data.audioBase64}`;
+          }
+          if (audioUrl) {
+            this.audioCache.set(cacheKey, audioUrl);
           }
         }
       } catch (err: any) {
@@ -347,16 +359,13 @@ class PhoneSettingsVoiceManager {
     }
 
     try {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
-
-      const voice = this.getVoiceForLang(lang);
-      if (voice) {
-        utterance.voice = voice;
+      if (this.voices.length === 0) {
+        this.loadVoices();
       }
 
-      utterance.rate = lang === 'en' ? 0.92 : 0.85;
-      utterance.pitch = 1.0;
+      const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+      const utterance = new SpeechSynthesisUtterance(text);
+      configureFemaleUtterance(utterance, bcp47, this.voices);
 
       utterance.onstart = () => {
         this.notifySpeaking(true);

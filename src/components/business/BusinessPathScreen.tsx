@@ -30,6 +30,7 @@ import {
 } from '@/types';
 import Image from 'next/image';
 import { AskSelviModal } from '@/components/whatsapp/AskSelviModal';
+import { waVoice } from './whatsapp-business/voice';
 
 interface BusinessPathScreenProps {
   language: SupportedLanguage | 'en' | 'ta' | 'hi';
@@ -240,36 +241,27 @@ export const BusinessPathScreen: React.FC<BusinessPathScreenProps> = ({
   // Cleanup speech synthesis on unmount
   useEffect(() => {
     return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      waVoice.stop();
     };
   }, []);
 
   const handlePlaySelviIntro = () => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
     if (isMascotSpeaking) {
-      window.speechSynthesis.cancel();
+      waVoice.stop();
       setIsMascotSpeaking(false);
       return;
     }
 
-    window.speechSynthesis.cancel();
+    waVoice.stop();
     const adviceText = t.selviAdvice.replace(
       '{name}',
       learnerName || (langKey === 'ta' ? 'வணிகத் தோழரே' : langKey === 'hi' ? 'दुकानदार साथी' : 'Shopkeeper Friend')
     );
 
-    const utterance = new SpeechSynthesisUtterance(adviceText);
-    utterance.lang = langKey === 'ta' ? 'ta-IN' : langKey === 'hi' ? 'hi-IN' : 'en-IN';
-    utterance.rate = 0.95;
-
-    utterance.onstart = () => setIsMascotSpeaking(true);
-    utterance.onend = () => setIsMascotSpeaking(false);
-    utterance.onerror = () => setIsMascotSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
+    setIsMascotSpeaking(true);
+    waVoice.speak(adviceText, langKey as 'ta' | 'hi' | 'en', () => {
+      setIsMascotSpeaking(false);
+    });
   };
 
   return (
@@ -280,9 +272,7 @@ export const BusinessPathScreen: React.FC<BusinessPathScreenProps> = ({
           {/* Back to Dashboard */}
           <button
             onClick={() => {
-              if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-              }
+              waVoice.stop();
               onBack();
             }}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold border border-slate-300 shadow-xs active:scale-95 transition cursor-pointer min-h-[44px]"
@@ -319,9 +309,7 @@ export const BusinessPathScreen: React.FC<BusinessPathScreenProps> = ({
             {/* Ask Selvi */}
             <button
               onClick={() => {
-                if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                  window.speechSynthesis.cancel();
-                }
+                waVoice.stop();
                 setIsSelviOpen(true);
                 onOpenDoubt?.('Business Growth Journey overview');
               }}
@@ -489,9 +477,7 @@ export const BusinessPathScreen: React.FC<BusinessPathScreenProps> = ({
 
                       <button
                         onClick={() => {
-                          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                            window.speechSynthesis.cancel();
-                          }
+                          waVoice.stop();
                           onSelectLesson(lesson.id);
                         }}
                         className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex flex-col items-center justify-center font-black transition-all cursor-pointer active:scale-95 active:translate-y-1 group ${
@@ -604,9 +590,7 @@ export const BusinessPathScreen: React.FC<BusinessPathScreenProps> = ({
                       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
                         <button
                           onClick={() => {
-                            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                              window.speechSynthesis.cancel();
-                            }
+                            waVoice.stop();
                             onSelectLesson(lesson.id);
                           }}
                           className={`w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer min-h-[44px] active:scale-95 ${

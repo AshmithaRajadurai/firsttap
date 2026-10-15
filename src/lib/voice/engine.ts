@@ -1,6 +1,7 @@
 import { SupportedLanguage, VoiceEngineState } from '@/types';
 import { matchLanguageIntent, normaliseTranscript } from '@/lib/fsm/intents';
 import { logger } from '@/lib/logger';
+import { configureFemaleUtterance, CANONICAL_FEMALE_SPEAKER } from './femaleVoice';
 
 export interface VoiceEngineCallbacks {
   onStateChange: (state: VoiceEngineState) => void;
@@ -45,7 +46,8 @@ export class VoiceEngine {
 
   private speechCounter = 0;
   private pendingAudioResume: (() => void) | null = null;
-  private preferredSpeaker: string = 'ishita';
+  private preferredSpeaker: string = CANONICAL_FEMALE_SPEAKER;
+  private ttsAudioCache: Map<string, string> = new Map();
 
   constructor(callbacks: VoiceEngineCallbacks) {
     this.callbacks = callbacks;
@@ -288,24 +290,37 @@ export class VoiceEngine {
     this.callbacks.onAudioStatusChange?.('preparing');
 
     try {
-      // 1. Request audio from multi-tier TTS route
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          language_code: language,
-          speaker: this.preferredSpeaker,
-        }),
-      });
+      const cacheKey = `${language}:${this.preferredSpeaker}:${text}`;
+      let audioSrc = this.ttsAudioCache.get(cacheKey);
 
-      if (this.speechCounter !== speechId) return;
+      if (!audioSrc) {
+        // 1. Request audio from multi-tier TTS route
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            language_code: language,
+            speaker: this.preferredSpeaker,
+          }),
+        });
 
-      const data = await res.json();
+        if (this.speechCounter !== speechId) return;
 
-      if (data.audioBase64) {
-        const mimeType = data.mimeType || (data.audioBase64.startsWith('//O') || data.audioBase64.startsWith('SUQz') ? 'audio/mpeg' : 'audio/wav');
-        const audioSrc = `data:${mimeType};base64,${data.audioBase64}`;
+        const data = await res.json();
+        if (data.audioDataUrl) {
+          audioSrc = data.audioDataUrl;
+        } else if (data.audioBase64) {
+          const mimeType = data.mimeType || (data.audioBase64.startsWith('//O') || data.audioBase64.startsWith('SUQz') ? 'audio/mpeg' : 'audio/wav');
+          audioSrc = `data:${mimeType};base64,${data.audioBase64}`;
+        }
+
+        if (audioSrc) {
+          this.ttsAudioCache.set(cacheKey, audioSrc);
+        }
+      }
+
+      if (audioSrc) {
         const audio = new Audio(audioSrc);
         this.currentAudioElement = audio;
 
@@ -415,20 +430,7 @@ export class VoiceEngine {
     this.activeUtterance = utterance;
 
     const voices = window.speechSynthesis.getVoices();
-    const langPrefix = language.split('-')[0];
-    const matchingVoice = voices.find(
-      (v) =>
-        v.lang === language ||
-        v.lang.startsWith(langPrefix) ||
-        (langPrefix === 'en' && (v.lang.includes('IN') || v.name.includes('India')))
-    );
-    if (matchingVoice) {
-      utterance.voice = matchingVoice;
-    }
-
-    utterance.lang = language;
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
+    configureFemaleUtterance(utterance, language, voices);
 
     this.startSpeakingVisualizer();
     this.callbacks.onAudioStatusChange?.('speaking');

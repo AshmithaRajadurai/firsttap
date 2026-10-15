@@ -23,14 +23,20 @@ function validateLanguageText(text: string, languageCode: string): { valid: bool
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, language_code, speaker } = await req.json();
+    const body = await req.json();
+    const text = body.text;
+    const rawLang = body.language_code || body.language || 'ta-IN';
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'Text prompt is required' }, { status: 400 });
     }
 
-    const targetLanguage = language_code || 'ta-IN';
-    const langPrefix = targetLanguage.split('-')[0].toLowerCase();
+    // Standardize to BCP-47 tag
+    let targetLanguage = rawLang;
+    const langPrefix = rawLang.split('-')[0].toLowerCase();
+    if (langPrefix === 'ta') targetLanguage = 'ta-IN';
+    else if (langPrefix === 'hi') targetLanguage = 'hi-IN';
+    else if (langPrefix === 'en') targetLanguage = 'en-IN';
 
     // Verification check for language alignment
     const validation = validateLanguageText(text, targetLanguage);
@@ -38,26 +44,24 @@ export async function POST(req: NextRequest) {
       console.warn(`[TTS API] Language mismatch warning for ${targetLanguage}: ${validation.warning}`);
     }
 
-    // Determine speaker for Sarvam Bulbul v3:
-    // Default Tamil female speaker: ishita, with ritu available for testing
-    let targetSpeaker = speaker ? String(speaker).toLowerCase().trim() : '';
-    if (!targetSpeaker) {
-      if (langPrefix === 'ta') {
-        targetSpeaker = 'ishita';
-      } else if (langPrefix === 'hi') {
-        targetSpeaker = 'ishita';
-      } else {
-        targetSpeaker = 'ishita';
+    // Enforce consistent female speaker:
+    // Sarvam Bulbul canonical female speaker: 'ishita' (articulate, warm female Indian voice)
+    // Alternate supported female speaker: 'ritu'
+    let targetSpeaker = 'ishita';
+    if (body.speaker && typeof body.speaker === 'string') {
+      const spk = body.speaker.toLowerCase().trim();
+      if (['ishita', 'ritu', 'shreya', 'kavya', 'priya', 'neha', 'pooja'].includes(spk)) {
+        targetSpeaker = spk;
       }
     }
 
     const apiKey = process.env.SARVAM_API_KEY;
+    const hasValidApiKey = apiKey && apiKey.trim() !== '' && apiKey.trim() !== 'your_sarvam_api_key_here';
 
-    // 1. Primary: Sarvam AI Bulbul v3 Text-to-Speech API
-    // Official API: https://docs.sarvam.ai/api-reference/text-to-speech/convert
-    if (apiKey && apiKey.trim() !== '') {
+    // 1. Primary: Sarvam AI Bulbul Text-to-Speech API
+    if (hasValidApiKey) {
       try {
-        console.log(`[TTS API] Calling Sarvam Bulbul v3: lang=[${targetLanguage}], speaker=[${targetSpeaker}], text="${text.slice(0, 50)}..."`);
+        console.log(`[TTS API] Calling Sarvam Bulbul: lang=[${targetLanguage}], speaker=[${targetSpeaker}] (female), text="${text.slice(0, 50)}..."`);
         
         const response = await fetch('https://api.sarvam.ai/text-to-speech', {
           method: 'POST',
@@ -68,6 +72,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             text,
             language_code: targetLanguage,
+            target_language_code: targetLanguage,
             model: 'bulbul:v3',
             speaker: targetSpeaker,
             pace: 1.0,
@@ -82,31 +87,35 @@ export async function POST(req: NextRequest) {
           const base64Audio = data.audios && data.audios[0] ? data.audios[0] : null;
 
           if (base64Audio) {
-            console.log(`[TTS API] Sarvam Bulbul v3 success: requestId=${data.request_id}, bytes=${base64Audio.length}`);
+            console.log(`[TTS API] Sarvam Bulbul success: requestId=${data.request_id}, bytes=${base64Audio.length}`);
+            const mimeType = 'audio/wav';
             return NextResponse.json({
               audioBase64: base64Audio,
-              mimeType: 'audio/wav',
+              audioDataUrl: `data:${mimeType};base64,${base64Audio}`,
+              mimeType,
+              format: mimeType,
               isMock: false,
               provider: 'sarvam-bulbul-v3',
               model: 'bulbul:v3',
               speaker: targetSpeaker,
+              gender: 'female',
               language_code: targetLanguage,
               request_id: data.request_id,
             });
           }
         } else {
           const errorText = await response.text();
-          console.warn(`[TTS API] Sarvam Bulbul v3 returned HTTP ${response.status}: ${errorText}`);
+          console.warn(`[TTS API] Sarvam Bulbul returned HTTP ${response.status}: ${errorText}`);
         }
       } catch (sarvamErr) {
         console.warn('[TTS API] Sarvam API network error, proceeding to secondary fallback:', sarvamErr);
       }
     } else {
-      console.log('[TTS API] No SARVAM_API_KEY detected in server environment. Using high-quality secondary fallback.');
+      console.log('[TTS API] No active SARVAM_API_KEY detected. Using high-quality female secondary fallback.');
     }
 
     // 2. High-Quality Secondary Fallback: Multi-lingual TTS audio service
-    // Generates genuine native Tamil, Hindi, and English spoken audio without requiring local Windows language packs
+    // Generates genuine native Tamil, Hindi, and English spoken female audio without requiring local Windows packs
     try {
       const encodedText = encodeURIComponent(text.slice(0, 400));
       const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${langPrefix}&client=tw-ob`;
@@ -120,15 +129,19 @@ export async function POST(req: NextRequest) {
       if (ttsRes.ok) {
         const arrayBuffer = await ttsRes.arrayBuffer();
         const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+        const mimeType = 'audio/mpeg';
         return NextResponse.json({
           audioBase64: base64Audio,
-          mimeType: 'audio/mpeg',
+          audioDataUrl: `data:${mimeType};base64,${base64Audio}`,
+          mimeType,
+          format: mimeType,
           isMock: false,
           provider: 'native-multilingual-tts-fallback',
           language_code: targetLanguage,
           model: 'fallback',
           speaker: targetSpeaker,
-          notice: !apiKey ? 'SARVAM_API_KEY is not configured in server environment; used secondary native TTS.' : 'Sarvam API call failed; used secondary native TTS.',
+          gender: 'female',
+          notice: !hasValidApiKey ? 'Using secondary high-quality female voice (Sarvam key not set in .env.local).' : 'Sarvam API call failed; used secondary native TTS.',
         });
       }
     } catch (fallbackErr) {
@@ -141,6 +154,8 @@ export async function POST(req: NextRequest) {
       text,
       language_code: targetLanguage,
       provider: 'browser-speech-synthesis',
+      gender: 'female',
+      preferredSpeaker: 'ishita',
       message: 'Browser Web Speech Synthesis fallback active.',
     });
   } catch (error: unknown) {

@@ -1,4 +1,5 @@
 import { SpamLanguageCode } from './types';
+import { configureFemaleUtterance, CANONICAL_FEMALE_SPEAKER } from '@/lib/voice/femaleVoice';
 
 class SpamVoiceManager {
   private synth: SpeechSynthesis | null = null;
@@ -10,6 +11,7 @@ class SpamVoiceManager {
   private activeAudio: HTMLAudioElement | null = null;
   private speechCounter: number = 0;
   private stateChangeListeners: Set<() => void> = new Set();
+  private audioCache: Map<string, string> = new Map();
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -100,19 +102,6 @@ class SpamVoiceManager {
     this.notify();
   }
 
-  private getVoiceForLanguage(lang: SpamLanguageCode): SpeechSynthesisVoice | null {
-    if (this.voices.length === 0) {
-      this.loadVoices();
-    }
-    const targetCode = lang === 'ta' ? 'ta' : lang === 'hi' ? 'hi' : 'en';
-    return (
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l.startsWith(targetCode);
-      }) || null
-    );
-  }
-
   public async speak(
     text: string,
     lang: SpamLanguageCode = 'en',
@@ -130,54 +119,68 @@ class SpamVoiceManager {
     this.isPaused = false;
     this.notify();
 
-    // 1. For Tamil, route through FirstTap Sarvam Bulbul v3 backend route (ishita speaker)
-    if (lang === 'ta') {
+    const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+    const cacheKey = `${bcp47}:${CANONICAL_FEMALE_SPEAKER}:${text}`;
+
+    // 1. Check audio cache or route through FirstTap Sarvam Bulbul TTS route (ishita female speaker)
+    let audioUri = this.audioCache.get(cacheKey);
+
+    if (!audioUri) {
       try {
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text,
-            language: 'ta-IN',
-            speaker: 'ishita',
+            language: bcp47,
+            language_code: bcp47,
+            speaker: CANONICAL_FEMALE_SPEAKER,
           }),
         });
 
         if (res.ok && currentSpeechId === this.speechCounter && !this.isMuted) {
           const data = await res.json();
-          if (data.audioBase64) {
-            const format = data.format || 'audio/wav';
-            const audioUri = `data:${format};base64,${data.audioBase64}`;
-            return new Promise<void>((resolve) => {
-              const audio = new Audio(audioUri);
-              this.activeAudio = audio;
-
-              const cleanup = () => {
-                if (this.activeAudio === audio) {
-                  this.activeAudio = null;
-                }
-                this.isSpeaking = false;
-                this.isPaused = false;
-                this.notify();
-                if (onEnd) onEnd();
-                resolve();
-              };
-
-              audio.onended = cleanup;
-              audio.onerror = cleanup;
-
-              audio.play().catch(() => {
-                cleanup();
-              });
-            });
+          if (data.audioDataUrl) {
+            audioUri = data.audioDataUrl;
+          } else if (data.audioBase64) {
+            const format = data.mimeType || data.format || 'audio/wav';
+            audioUri = `data:${format};base64,${data.audioBase64}`;
+          }
+          if (audioUri) {
+            this.audioCache.set(cacheKey, audioUri);
           }
         }
       } catch (err) {
-        console.warn('[SpamVoice] Sarvam TTS fallback to browser synthesis:', err);
+        console.warn('[SpamVoice] AI TTS fallback to browser synthesis:', err);
       }
     }
 
-    // 2. Browser SpeechSynthesis for English, Hindi, or Tamil fallback
+    if (audioUri && currentSpeechId === this.speechCounter && !this.isMuted) {
+      return new Promise<void>((resolve) => {
+        const audio = new Audio(audioUri);
+        this.activeAudio = audio;
+
+        const cleanup = () => {
+          if (this.activeAudio === audio) {
+            this.activeAudio = null;
+          }
+          this.isSpeaking = false;
+          this.isPaused = false;
+          this.notify();
+          if (onEnd) onEnd();
+          resolve();
+        };
+
+        audio.onended = cleanup;
+        audio.onerror = cleanup;
+
+        audio.play().catch(() => {
+          cleanup();
+        });
+      });
+    }
+
+    // 2. Browser SpeechSynthesis for fallback with strict female voice configuration
     if (!this.synth || currentSpeechId !== this.speechCounter || this.isMuted) {
       this.isSpeaking = false;
       this.notify();
@@ -186,16 +189,14 @@ class SpamVoiceManager {
     }
 
     return new Promise<void>((resolve) => {
+      if (this.voices.length === 0) {
+        this.loadVoices();
+      }
+
       const utterance = new SpeechSynthesisUtterance(text);
       this.activeUtterance = utterance;
 
-      const voice = this.getVoiceForLanguage(lang);
-      if (voice) {
-        utterance.voice = voice;
-      }
-      utterance.lang = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
+      configureFemaleUtterance(utterance, bcp47, this.voices);
 
       const finish = () => {
         if (this.activeUtterance === utterance) {

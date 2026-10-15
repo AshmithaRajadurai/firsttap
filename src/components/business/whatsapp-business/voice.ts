@@ -1,4 +1,5 @@
 import { LanguageCode } from './types';
+import { configureFemaleUtterance, CANONICAL_FEMALE_SPEAKER } from '@/lib/voice/femaleVoice';
 
 class WABusinessVoiceManager {
   private synth: SpeechSynthesis | null = null;
@@ -6,6 +7,9 @@ class WABusinessVoiceManager {
   private isMuted: boolean = false;
   private audioCtx: AudioContext | null = null;
   private speakingListeners: ((isSpeaking: boolean) => void)[] = [];
+  private audioCache: Map<string, string> = new Map();
+  private currentAudio: HTMLAudioElement | null = null;
+  private speechCounter: number = 0;
   public isCurrentlySpeaking: boolean = false;
 
   constructor() {
@@ -41,19 +45,6 @@ class WABusinessVoiceManager {
     this.speakingListeners.forEach((cb) => cb(speaking));
   }
 
-  public getVoiceForLang(lang: LanguageCode): SpeechSynthesisVoice | null {
-    if (this.voices.length === 0) {
-      this.loadVoices();
-    }
-    const targetPrefix = lang === 'ta' ? 'ta' : lang === 'hi' ? 'hi' : 'en';
-    return (
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l.startsWith(targetPrefix);
-      }) || null
-    );
-  }
-
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (muted) {
@@ -72,6 +63,11 @@ class WABusinessVoiceManager {
       } catch (e) {
         console.warn('Speech cancellation error:', e);
       }
+    }
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.src = '';
+      this.currentAudio = null;
     }
     this.notifySpeaking(false);
   }
@@ -105,7 +101,6 @@ class WABusinessVoiceManager {
         osc.start(now);
         osc.stop(now + 0.15);
       } else if (type === 'success') {
-        // Joyful 3-tone arpeggio: C5 -> E5 -> G5
         const osc2 = this.audioCtx.createOscillator();
         const gain2 = this.audioCtx.createGain();
         osc.type = 'triangle';
@@ -143,25 +138,99 @@ class WABusinessVoiceManager {
     }
   }
 
-  public speak(text: string, lang: LanguageCode, onEnd?: () => void) {
-    if (this.isMuted || !this.synth) {
-      if (onEnd) setTimeout(onEnd, 1500);
+  public async speak(text: string, lang: LanguageCode, onEnd?: () => void) {
+    if (this.isMuted || typeof window === 'undefined' || !text.trim()) {
+      if (onEnd) setTimeout(onEnd, 500);
       return;
     }
 
     this.stop();
+    const currentSpeechId = ++this.speechCounter;
+    this.notifySpeaking(true);
+
+    const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+    const cacheKey = `${bcp47}:${CANONICAL_FEMALE_SPEAKER}:${text}`;
+
+    // 1. Try AI TTS route with consistent female voice (ishita)
+    let audioUrl = this.audioCache.get(cacheKey);
+
+    if (!audioUrl) {
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            language: bcp47,
+            language_code: bcp47,
+            speaker: CANONICAL_FEMALE_SPEAKER,
+          }),
+        });
+
+        if (res.ok && currentSpeechId === this.speechCounter && !this.isMuted) {
+          const data = await res.json();
+          if (data.audioDataUrl) {
+            audioUrl = data.audioDataUrl;
+          } else if (data.audioBase64) {
+            const format = data.mimeType || data.format || 'audio/wav';
+            audioUrl = `data:${format};base64,${data.audioBase64}`;
+          }
+          if (audioUrl) {
+            this.audioCache.set(cacheKey, audioUrl);
+          }
+        }
+      } catch (err) {
+        console.warn('[WABusinessVoice] AI TTS fetch error, falling back:', err);
+      }
+    }
+
+    if (audioUrl && currentSpeechId === this.speechCounter && !this.isMuted) {
+      try {
+        const audio = new Audio(audioUrl);
+        this.currentAudio = audio;
+
+        audio.onended = () => {
+          this.notifySpeaking(false);
+          this.currentAudio = null;
+          if (onEnd) onEnd();
+        };
+
+        audio.onerror = () => {
+          this.notifySpeaking(false);
+          this.currentAudio = null;
+          this.fallbackBrowserSpeak(text, bcp47, onEnd, currentSpeechId);
+        };
+
+        await audio.play();
+        return;
+      } catch (playErr) {
+        console.warn('[WABusinessVoice] Audio play error, using browser fallback:', playErr);
+      }
+    }
+
+    // 2. Browser fallback with guaranteed female voice
+    this.fallbackBrowserSpeak(text, bcp47, onEnd, currentSpeechId);
+  }
+
+  private fallbackBrowserSpeak(
+    text: string,
+    bcp47: string,
+    onEnd?: () => void,
+    speechId?: number
+  ) {
+    if (this.isMuted || !this.synth || (speechId && speechId !== this.speechCounter)) {
+      this.notifySpeaking(false);
+      if (onEnd) onEnd();
+      return;
+    }
 
     try {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
-
-      const voice = this.getVoiceForLang(lang);
-      if (voice) {
-        utterance.voice = voice;
+      if (this.voices.length === 0) {
+        this.loadVoices();
       }
 
-      utterance.rate = lang === 'en' ? 0.95 : 0.88; // gentle, steady pace for shopkeepers
-      utterance.pitch = 1.05;
+      const utterance = new SpeechSynthesisUtterance(text);
+      configureFemaleUtterance(utterance, bcp47, this.voices);
 
       utterance.onstart = () => {
         this.notifySpeaking(true);
