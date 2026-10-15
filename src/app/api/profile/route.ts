@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
       assessment_status: profile.assessment_status || 'COMPLETED',
       assessment_completed_at: profile.assessment_completed_at || new Date().toISOString(),
       completion_reason: profile.completion_reason || (profile.phone_independent ? 'BRANCH_ASSESSMENT_COMPLETED' : 'FOUNDATION_PATH'),
+      whatsapp_progress: profile.whatsapp_progress,
+      spam_progress: profile.spam_progress,
+      business_progress: profile.business_progress,
     };
 
     currentProfile = structuredProfile;

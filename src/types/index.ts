@@ -60,6 +60,51 @@ export type StartingLearningPath =
   | 'DIGITAL_BUSINESS_BASICS'
   | 'DIGITAL_BOOKKEEPING_AND_BUSINESS_TOOLS';
 
+export type WhatsAppSegmentId = 'W0' | 'W1' | 'W2' | 'W3' | 'W4' | 'W5' | 'W6' | 'W7';
+
+export interface WhatsAppStepAttempt {
+  step_id: string;
+  module_id: 'message' | 'pay' | 'creyo' | string;
+  correct: boolean;
+  hesitation_ms: number;
+  attempt_number: number;
+  timestamp: number;
+}
+
+export interface WhatsAppProgress {
+  current_segment_id: WhatsAppSegmentId;
+  completed_segments: WhatsAppSegmentId[];
+  skipped_segments: WhatsAppSegmentId[];
+  attempts: WhatsAppStepAttempt[];
+  is_module_completed: boolean;
+  last_active_at: string;
+}
+
+export type SpamStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+export interface SpamProgress {
+  current_step_id: SpamStepId;
+  completed_steps: SpamStepId[];
+  skipped_steps: SpamStepId[];
+  quiz_score?: number;
+  quiz_total?: number;
+  is_module_completed: boolean;
+  last_active_at: string;
+}
+
+export type BusinessLessonId = 'wa_business' | 'google_maps';
+
+export interface BusinessProgress {
+  current_lesson_id?: BusinessLessonId;
+  completed_lessons?: BusinessLessonId[];
+  skipped_lessons?: BusinessLessonId[];
+  current_step_id?: number | string;
+  completed_steps?: (number | string)[];
+  skipped_steps?: (number | string)[];
+  is_module_completed?: boolean;
+  last_active_at?: string;
+}
+
 export interface LearnerProfile {
   name: string;
   preferred_language: SupportedLanguage;
@@ -70,6 +115,9 @@ export interface LearnerProfile {
   assessment_status: 'COMPLETED' | 'IN_PROGRESS' | 'FAILED';
   assessment_completed_at: string;
   completion_reason?: 'FOUNDATION_PATH' | 'BRANCH_ASSESSMENT_COMPLETED';
+  whatsapp_progress?: WhatsAppProgress;
+  spam_progress?: SpamProgress;
+  business_progress?: BusinessProgress;
 }
 
 export type FSMState =
@@ -88,6 +136,13 @@ export type FSMState =
   | 'WAITING_FOR_BRANCH_ANSWER'
   | 'SAVING_PROFILE'
   | 'ASSESSMENT_COMPLETE'
+  | 'WHATSAPP_PATH'
+  | 'WHATSAPP_MODULE'
+  | 'SPAM_PATH'
+  | 'SPAM_MODULE'
+  | 'BUSINESS_PATH'
+  | 'BUSINESS_WA_MODULE'
+  | 'BUSINESS_MAPS_MODULE'
   | 'ERROR_RECOVERY'
   // Compatibility / Aliases
   | 'APP_START'
@@ -145,6 +200,9 @@ export interface SessionData {
   lastSpokenText: string;
   captionsEnabled: boolean;
   isApiMode: boolean;
+  whatsapp_progress?: WhatsAppProgress;
+  spam_progress?: SpamProgress;
+  business_progress?: BusinessProgress;
   // Legacy fields preserved for compatibility
   hasPhone?: boolean | null;
   placementCurrentIndex?: number;
