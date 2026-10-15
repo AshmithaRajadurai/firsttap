@@ -181,9 +181,9 @@ export class VoiceEngine {
     items: { text: string; language: SupportedLanguage }[],
     onFinished?: () => void
   ): Promise<void> {
-    // 1. Ensure any prior playback or recording is stopped first
+    // 1. Ensure any prior playback or recording is stopped and cancelled first
     this.stopSpeaking();
-    this.stopListening();
+    this.cancelListening();
 
     this.speechCounter++;
     const speechId = this.speechCounter;
@@ -247,9 +247,9 @@ export class VoiceEngine {
     language: SupportedLanguage,
     onFinished?: () => void
   ): Promise<void> {
-    // 1. Ensure any prior playback or recording is stopped first
+    // 1. Ensure any prior playback or recording is stopped and cancelled first
     this.stopSpeaking();
-    this.stopListening();
+    this.cancelListening();
 
     this.speechCounter++;
     const speechId = this.speechCounter;
@@ -583,7 +583,7 @@ export class VoiceEngine {
       };
 
       recorder.onstop = async () => {
-        if (this.isProcessingRecording) return;
+        if (this.isProcessingRecording || this.currentSessionId !== sessionId) return;
         this.isProcessingRecording = true;
         this.log(`MediaRecorder onstop fired for session #${sessionId}.`);
         logger.logRecognitionStop('MediaRecorder onstop', sessionId);
@@ -690,6 +690,55 @@ export class VoiceEngine {
         this.log('MediaRecorder stop error:', e);
       }
     }
+  }
+
+  /**
+   * Cancel recording immediately, discarding any pending audio and preventing
+   * silence/no-speech callbacks from triggering retries.
+   */
+  public cancelListening(): void {
+    this.currentSessionId++;
+    this.isProcessingRecording = true;
+
+    if (this.maxRecordTimer) {
+      clearTimeout(this.maxRecordTimer);
+      this.maxRecordTimer = null;
+    }
+    if (this.initialSilenceTimer) {
+      clearTimeout(this.initialSilenceTimer);
+      this.initialSilenceTimer = null;
+    }
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
+    }
+
+    this.stopListeningVisualizer();
+
+    if (this.speechRecognition) {
+      try {
+        this.speechRecognition.abort();
+      } catch (e) {}
+    }
+
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      try {
+        this.audioChunks = [];
+        this.mediaRecorder.stop();
+      } catch (e) {
+        this.log('MediaRecorder stop on cancel note:', e);
+      }
+    }
+
+    if (
+      this.state === 'LISTENING' ||
+      this.state === 'STARTING_MICROPHONE' ||
+      this.state === 'STOPPING_RECORDING' ||
+      this.state === 'TRANSCRIBING'
+    ) {
+      this.setState('IDLE');
+    }
+    this.log('Listening session cancelled. Audio discarded.');
   }
 
   /**

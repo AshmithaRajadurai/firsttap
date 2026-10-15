@@ -49,6 +49,8 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
     ],
   };
 
+  const [isRecording, setIsRecording] = useState(false);
+
   const handleAsk = async (textToAsk: string) => {
     if (!textToAsk.trim() || isLoading) return;
     setIsLoading(true);
@@ -62,24 +64,34 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          doubtQuestion: textToAsk,
+          question: textToAsk.trim(),
+          doubtQuestion: textToAsk.trim(),
+          language_code: fullLang,
           language: fullLang,
-          context: `WhatsApp Lesson: ${lessonId} (${lessonTitle}). Step: ${currentStepInstruction || 'Practice screen'}.`,
+          context:
+            contextPrompt ||
+            `Digital Literacy Lesson: ${lessonId} (${lessonTitle}). Step: ${currentStepInstruction || 'Practice screen'}.`,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const reply = data.answer || 'Selvi is here to help! Please try tapping the glowing area.';
+        const reply =
+          data.answer ||
+          (language === 'ta'
+            ? 'நான் உங்கள் டிஜிட்டல் வழிகாட்டி செல்வி! எளிய முறையில் தொடர்ந்து கற்றுக்கொள்ளுங்கள்.'
+            : language === 'hi'
+            ? 'मैं आपकी डिजिटल मेंटर सेलवी हूँ! सीखते रहें, मैं हमेशा मदद के लिए हूँ।'
+            : 'I am your digital guide Selvi! Keep practicing step by step, I am always here to guide you.');
         setAnswer(reply);
         voiceManager.speak(reply, language);
       } else {
         const fallback =
           language === 'ta'
-            ? 'திரையில் ஒளிரும் மஞ்சள் அல்லது பச்சை நிற பகுதியைத் தொட்டுப் பழகுங்கள்.'
+            ? 'திரையில் ஒளிரும் பகுதியையோ அல்லது தேவையான பொத்தானையோ தொட்டுப் பழகலாம்.'
             : language === 'hi'
-            ? 'स्क्रीन पर चमकते हुए हिस्से को छूकर अभ्यास करें।'
-            : 'Please tap the glowing area on the screen to practice.';
+            ? 'स्क्रीन पर चमकते हुए हिस्से या आवश्यक बटन को छूकर अभ्यास करें।'
+            : 'Please tap the glowing area or target button on the screen to practice.';
         setAnswer(fallback);
         voiceManager.speak(fallback, language);
       }
@@ -87,11 +99,48 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
       const fallback =
         language === 'ta'
           ? 'திரையில் ஒளிரும் பட்டனை மெதுவாக ஒருமுறை தொடவும்.'
-          : 'Please gently tap the glowing button on the screen.';
+          : 'Please gently tap the glowing button on the screen to continue.';
       setAnswer(fallback);
       voiceManager.speak(fallback, language);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleStartVoiceInput = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    try {
+      const rec = new SpeechRec();
+      const langCodeMap = { ta: 'ta-IN', hi: 'hi-IN', en: 'en-IN' } as const;
+      rec.lang = langCodeMap[language] || 'en-IN';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+
+      setIsRecording(true);
+
+      rec.onresult = (e: any) => {
+        const transcript = e.results?.[0]?.[0]?.transcript?.trim();
+        if (transcript) {
+          setQuestion(transcript);
+          handleAsk(transcript);
+        }
+      };
+
+      rec.onerror = () => {
+        setIsRecording(false);
+      };
+
+      rec.onend = () => {
+        setIsRecording(false);
+      };
+
+      rec.start();
+    } catch (err) {
+      console.warn('Voice input error:', err);
+      setIsRecording(false);
     }
   };
 
@@ -197,6 +246,19 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
               }
               className="flex-1 bg-transparent px-2 text-xs text-slate-900 dark:text-white outline-hidden font-medium"
             />
+            <button
+              type="button"
+              onClick={handleStartVoiceInput}
+              disabled={isLoading}
+              title="Speak your question aloud"
+              className={`p-2 rounded-xl transition cursor-pointer ${
+                isRecording
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : 'bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 text-amber-800 dark:text-amber-300'
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={() => handleAsk(question)}
               disabled={!question.trim() || isLoading}

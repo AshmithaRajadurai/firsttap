@@ -34,69 +34,98 @@ const FALLBACK_DOUBT_ANSWERS: Record<
 
 export async function POST(req: NextRequest) {
   try {
-    const { question, language_code, context, userName } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const question = (
+      body.question ||
+      body.doubtQuestion ||
+      body.prompt ||
+      body.text ||
+      ''
+    ).toString().trim();
 
-    if (!question || typeof question !== 'string') {
+    if (!question) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
 
-    const lang = (language_code as 'ta-IN' | 'en-IN' | 'hi-IN') || 'ta-IN';
-    const name = userName || 'Learner';
+    const rawLang = (body.language_code || body.language || 'ta-IN').toString();
+    const lang: 'ta-IN' | 'en-IN' | 'hi-IN' =
+      rawLang.startsWith('ta') ? 'ta-IN' : rawLang.startsWith('hi') ? 'hi-IN' : 'en-IN';
+    const name = body.userName || body.name || 'Learner';
+    const context = body.context || 'Smartphone literacy & digital safety lesson';
 
-    // Check Gemini API Key
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (geminiKey && geminiKey.trim() !== '') {
-      try {
-        const systemPrompt = `You are "Tapu", a warm, patient, and friendly cartoon mascot teacher in FirstTap, a voice-first digital literacy app for first-time smartphone learners in India.
+    // Check Gemini API Key from multiple sources
+    const rawKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+      '';
+    const geminiKey = rawKey.trim() !== 'your_gemini_api_key_here' ? rawKey.trim() : '';
+
+    if (geminiKey) {
+      const targetLangName =
+        lang === 'ta-IN' ? 'Tamil' : lang === 'hi-IN' ? 'Hindi' : 'Indian English';
+
+      const systemPrompt = `You are "Selvi", an empathetic, patient, and highly encouraging female AI teacher in FirstTap, helping first-time smartphone learners in India.
 Current learner name: ${name}
-Target spoken language: ${lang === 'ta-IN' ? 'Tamil' : lang === 'hi-IN' ? 'Hindi' : 'Indian English'}
-Context: The learner is in an interactive lesson about smartphone usage and digital financial safety.
+Target spoken language: ${targetLangName}
+Lesson context: ${context}
 
-CRITICAL SAFETY RULES:
-1. STRICTLY restrict answers to digital literacy, smartphone basics, app usage, internet searching, UPI payments, and cyber safety.
-2. If asked about banking, NEVER ask for OTP, PIN, password, bank account, debit card, or personal data. Warn them never to disclose PIN or OTP.
-3. Keep the spoken response VERY SHORT: maximum 2 to 3 friendly sentences, simple vocabulary, conversational tone suitable for Text-to-Speech audio.
-4. Answer ONLY in the target language (${lang}). Do not add markdown or bullet points.`;
+RULES:
+1. Explain answers clearly and warmly so a beginner or elder can easily understand.
+2. Keep the answer CONCISE: maximum 2 to 3 friendly sentences, conversational and natural for voice readout.
+3. Respond ONLY in the requested language (${targetLangName}). Do NOT use markdown asterisks or bullet points.
+4. Digital Safety: If asked about payments or banking, remind them to NEVER share their UPI PIN or OTP with anyone.`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    {
-                      text: `${systemPrompt}\n\nLearner's Question: "${question}"\nCurrent Lesson Context: ${context || 'General digital literacy'}\n\nSpoken answer:`,
-                    },
-                  ],
+      const candidateModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash'];
+
+      for (const model of candidateModels) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [
+                      {
+                        text: `${systemPrompt}\n\nLearner's Question: "${question}"\n\nSelvi's spoken response:`,
+                      },
+                    ],
+                  },
+                ],
+                generationConfig: {
+                  maxOutputTokens: 1024,
+                  temperature: 0.3,
+                  thinkingConfig: {
+                    thinkingBudget: 0,
+                  },
                 },
-              ],
-              generationConfig: {
-                maxOutputTokens: 120,
-                temperature: 0.3,
-              },
-            }),
-          }
-        );
+              }),
+            }
+          );
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const answerText =
-            geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const answerText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
-          if (answerText) {
-            return NextResponse.json({
-              answer: answerText,
-              provider: 'gemini',
-              isMock: false,
-            });
+            if (answerText) {
+              return NextResponse.json({
+                answer: answerText,
+                provider: 'gemini',
+                model,
+                isMock: false,
+              });
+            }
+          } else {
+            const errData = await geminiRes.text();
+            console.warn(`Gemini (${model}) returned status ${geminiRes.status}:`, errData.slice(0, 150));
           }
+        } catch (geminiErr) {
+          console.warn(`Gemini (${model}) network error:`, geminiErr);
         }
-      } catch (geminiErr) {
-        console.warn('Gemini doubt error, falling back to safety dictionary:', geminiErr);
       }
     }
 

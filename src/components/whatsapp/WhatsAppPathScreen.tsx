@@ -114,7 +114,7 @@ const UI_TEXT = {
     continueCta: 'Continue to Step {num}',
   },
   ta: {
-    heading: 'டிஜிட்டல் தொடக்கநிலை சாகசப் பயணம்',
+    heading: 'டிஜிட்டல் தொடக்கநிலை சாகசம்',
     adventureTheme: 'ஸ்மார்ட்போன் & வாட்ஸ்அப் சாகசம்',
     subheading: 'போன் அமைப்புகள் (வைஃபை, மொபைல் டேட்டா, டார்ச், ஹாட்ஸ்பாட்) மற்றும் வாட்ஸ்அப் பயிற்சிகளை விளையாட்டு வழியில் கற்கலாம்',
     backToDashboard: 'டாஷ்போர்டுக்கு திரும்பு',
@@ -140,7 +140,7 @@ const UI_TEXT = {
     continueCta: 'படி {num}-க்குச் செல்',
   },
   hi: {
-    heading: 'डिजिटल शुरुआती एडवेंचर',
+    heading: 'डिजिटल बिगिनर एडवेंचर',
     adventureTheme: 'स्मार्टफोन और व्हाट्सएप एडवेंचर',
     subheading: 'फोन सेटिंग्स (वाई-फाई, मोबाइल डेटा, हॉटस्पॉट, टॉर्च) और व्हाट्सएप संचार एक मजेदार ट्रेल पर सीखें',
     backToDashboard: 'डैशबोर्ड पर वापस',
@@ -260,10 +260,10 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
     }
     const introSpeech =
       langKey === 'ta'
-        ? `வணக்கம் ${learnerName || ''}! உங்கள் வாட்ஸ்அப் தகவல் தொடர்பு சாகசத்திற்கு நல்வரவு! கீழே உள்ள பாதையில் உள்ள ஒவ்வொரு கட்டத்தையும் தொட்டுப் பழகத் தொடங்குங்கள்.`
+        ? `வணக்கம் ${learnerName || ''}! உங்கள் டிஜிட்டல் தொடக்கநிலை சாகசத்திற்கு நல்வரவு! கீழே உள்ள பாதையில் உள்ள ஒவ்வொரு கட்டத்தையும் தொட்டுப் பழகத் தொடங்குங்கள்.`
         : langKey === 'hi'
-        ? `नमस्ते ${learnerName || ''}! आपके व्हाट्सएप कम्युनिकेशन एडवेंचर में स्वागत है! अभ्यास शुरू करने के लिए नीचे दिए गए ट्रेल पर आगे बढ़ें।`
-        : `Welcome ${learnerName || 'friend'} to your WhatsApp Communication Adventure! Follow the winding trail below to practice real WhatsApp skills step-by-step.`;
+        ? `नमस्ते ${learnerName || ''}! आपके डिजिटल बिगिनर एडवेंचर में स्वागत है! अभ्यास शुरू करने के लिए नीचे दिए गए ट्रेल पर आगे बढ़ें।`
+        : `Welcome ${learnerName || 'friend'} to your Digital Beginner Adventure! Follow the winding trail below to practice real smartphone basics and everyday communication step-by-step.`;
 
     setIsMascotSpeaking(true);
     voiceManager.speak(introSpeech, langKey);
@@ -294,7 +294,7 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
             {/* Progress pill */}
             <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-black shadow-2xs">
               <Trophy className="w-4 h-4 text-amber-500 fill-amber-400" />
-              <span>{completedCount}/8</span>
+              <span>{completedCount}/{totalModules}</span>
             </span>
 
             {/* Ask Selvi */}
@@ -302,7 +302,7 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
               onClick={() => {
                 voiceManager.stop();
                 setIsSelviOpen(true);
-                onOpenDoubt?.('WhatsApp Learning Path overview');
+                onOpenDoubt?.('Digital Beginner Adventure overview');
               }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-800 hover:bg-teal-700 text-teal-50 text-xs font-extrabold transition cursor-pointer shadow-xs active:scale-95 border border-teal-600"
               title="Ask Selvi"
@@ -621,7 +621,9 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
         isOpen={isSelviOpen}
         onClose={() => setIsSelviOpen(false)}
         language={langKey}
-        contextPrompt="WhatsApp Learning Path overview"
+        lessonId="ADVENTURE"
+        lessonTitle="Digital Beginner Adventure"
+        contextPrompt="Digital Beginner Adventure trail overview (Smartphone basics & everyday communication)"
       />
     </div>
   );

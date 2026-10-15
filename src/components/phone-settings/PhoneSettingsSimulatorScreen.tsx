@@ -42,6 +42,7 @@ import {
   SETTINGS_QUIZ_QUESTIONS,
 } from './lessonsData';
 import { settingsVoice } from './voice';
+import { AskSelviModal } from '../whatsapp/AskSelviModal';
 
 export interface PhoneSettingsSimulatorScreenProps {
   language?: LanguageCode;
@@ -94,6 +95,7 @@ export const PhoneSettingsSimulatorScreen: React.FC<PhoneSettingsSimulatorScreen
   // Audio voice speaking indicator
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
+  const [isAskSelviOpen, setIsAskSelviOpen] = useState<boolean>(false);
 
   // Home Screen App Feedback Modal (e.g. testing internet with YouTube/WhatsApp)
   const [appTestFeedback, setAppTestFeedback] = useState<string | null>(null);
@@ -554,6 +556,19 @@ export const PhoneSettingsSimulatorScreen: React.FC<PhoneSettingsSimulatorScreen
               </button>
             )}
           </div>
+
+          {/* Ask Selvi */}
+          <button
+            onClick={() => {
+              settingsVoice.stop();
+              setIsAskSelviOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-xs active:scale-95 border border-amber-300"
+            title="Ask Selvi"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+            <span>{language === 'ta' ? 'செல்வி உதவி' : language === 'hi' ? 'सेल्वी से पूछें' : 'Ask Selvi'}</span>
+          </button>
 
           {/* Voice Narration Audio Toggle */}
           <button
@@ -1463,6 +1478,21 @@ export const PhoneSettingsSimulatorScreen: React.FC<PhoneSettingsSimulatorScreen
           </div>
         </div>
       </div>
+
+      {/* Ask Selvi Out-of-the-box LLM Doubt Modal */}
+      <AskSelviModal
+        isOpen={isAskSelviOpen}
+        onClose={() => setIsAskSelviOpen(false)}
+        language={language}
+        lessonId={`SETTINGS_${activeLessonId}`}
+        lessonTitle={currentLesson ? currentLesson.title[language] : 'Smartphone Basics Quiz'}
+        currentStepInstruction={
+          currentStep ? currentStep.subtitles[language] : 'Practicing smartphone settings and quick toggles'
+        }
+        contextPrompt={`Smartphone Settings Lesson: ${
+          currentLesson ? currentLesson.title[language] : 'Basics Review'
+        }. Wi-Fi, Mobile Data, Hotspot, Torch, Sound Modes.`}
+      />
     </div>
   );
 };

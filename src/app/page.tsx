@@ -41,7 +41,7 @@ import {
   CheckCircle2,
   Volume2,
 } from 'lucide-react';
-import { FirstTapWhatsApp, WhatsAppPathScreen } from '@/components/whatsapp';
+import { FirstTapWhatsApp, WhatsAppPathScreen, AskSelviModal } from '@/components/whatsapp';
 import { FirstTapSpamModule, SpamPathScreen } from '@/components/spam';
 import {
   BusinessPathScreen,
@@ -58,6 +58,12 @@ export default function FirstTapApp() {
   const [fsmState, setFsmState] = useState<FSMState>('GREETING');
   const [voiceState, setVoiceState] = useState<VoiceEngineState>('IDLE');
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('ta-IN');
+
+  // Global "Ask Selvi" LLM Modal State (available across assessment & all simulation paths)
+  const [isGlobalAskSelviOpen, setIsGlobalAskSelviOpen] = useState(false);
+  const [globalAskSelviContext, setGlobalAskSelviContext] = useState<string>('FirstTap Digital Literacy');
+  const [globalAskSelviLessonId, setGlobalAskSelviLessonId] = useState<string>('OVERVIEW');
+  const [globalAskSelviTitle, setGlobalAskSelviTitle] = useState<string>('Ask Selvi');
   const [mascotMood, setMascotMood] = useState<MascotMood>('welcome');
   const [audioAmplitude, setAudioAmplitude] = useState<number>(0);
 
@@ -435,9 +441,16 @@ export default function FirstTapApp() {
     executeTransition(repeatRes);
   };
 
-  // Ask question / doubt
-  const handleAskQuestion = () => {
-    triggerListening(currentLanguage);
+  // Ask question / doubt - opens LLM powered Ask Selvi modal
+  const handleAskQuestion = (context?: string, lessonId?: string, title?: string) => {
+    if (voiceEngineRef.current) {
+      voiceEngineRef.current.cancelListening();
+      voiceEngineRef.current.stopSpeaking();
+    }
+    setGlobalAskSelviContext(context || `FirstTap voice session: ${fsmState}`);
+    setGlobalAskSelviLessonId(lessonId || 'DOUBT');
+    setGlobalAskSelviTitle(title || 'Ask Selvi');
+    setIsGlobalAskSelviOpen(true);
   };
 
   // Manual language switch from header
@@ -452,8 +465,15 @@ export default function FirstTapApp() {
     executeTransition(res);
   };
 
-  // Manual option selection (accessible button click fallback)
+  // Manual option selection (accessible button click fallback & text input during assessment)
   const handleSelectOptionManually = (text: string) => {
+    // 1. Immediately abort active microphone recording and cancel timers so silent audio NEVER triggers "I can't hear you"
+    if (voiceEngineRef.current) {
+      voiceEngineRef.current.cancelListening();
+      voiceEngineRef.current.stopSpeaking();
+    }
+    isProcessingRef.current = false;
+
     if (
       fsmState === 'WAITING_FOR_LANGUAGE' ||
       fsmState === 'LANGUAGE_OPTIONS' ||
@@ -560,10 +580,10 @@ export default function FirstTapApp() {
     }
 
     return effectiveLanguage === 'ta-IN'
-      ? `வணக்கம் ${name}! வாட்ஸ்அப் பாடங்களை ஒரு நேரத்தில் ஒரு படியாகக் கற்போம்!`
+      ? `வணக்கம் ${name}! போன் அமைப்புகள் மற்றும் அன்றாட தொடர்பு திறன்களைக் கற்போம்!`
       : effectiveLanguage === 'hi-IN'
-      ? `नमस्ते ${name}! आइए व्हाट्सएप सीखें, एक समय में एक कदम!`
-      : `Hello ${name}! Let's learn WhatsApp, one simple step at a time!`;
+      ? `नमस्ते ${name}! आइए फोन बेसिक्स और संचार कौशल सीखें, एक समय में एक कदम!`
+      : `Hello ${name}! Let's learn smartphone basics and communication, one simple step at a time!`;
   }, [learnerProfile, recommendedPath, effectiveLanguage]);
 
   const t = UI_TRANSLATIONS[effectiveLanguage] || UI_TRANSLATIONS['en-IN'];
@@ -789,56 +809,36 @@ export default function FirstTapApp() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-teal-500/20">
-                          {isBeginner && !isPhoneBasicsDone ? (
-                            <Smartphone className="w-6 h-6" />
-                          ) : (
-                            <MessageSquare className="w-6 h-6" />
-                          )}
+                          <Smartphone className="w-6 h-6" />
                         </div>
                         <div>
                           <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shadow-xs mb-1">
                             {effectiveLanguage === 'ta-IN' ? 'தொடங்க வேண்டிய பாதை' : effectiveLanguage === 'hi-IN' ? 'प्राथमिक पाथ' : 'Primary Path'}
                           </span>
                           <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-snug">
-                            {isBeginner
-                              ? effectiveLanguage === 'ta-IN'
-                                ? 'ஸ்மார்ட்போன் அடிப்படைகள் & வாட்ஸ்அப் சாகசம் (9 பயிற்சிகள்)'
-                                : effectiveLanguage === 'hi-IN'
-                                ? 'स्मार्टफोन बेसिक्स और व्हाट्सएप एडवेंचर (9 पाठ)'
-                                : 'Smartphone Basics & WhatsApp Adventure (9 Modules)'
-                              : effectiveLanguage === 'ta-IN'
-                              ? 'வாட்ஸ்அப் தகவல் தொடர்பு சாகசம் (8 பயிற்சிகள்)'
+                            {effectiveLanguage === 'ta-IN'
+                              ? 'டிஜிட்டல் தொடக்கநிலை சாகசம் (9 பயிற்சிகள்)'
                               : effectiveLanguage === 'hi-IN'
-                              ? 'व्हाट्सएप संचार एडवेंचर (8 पाठ)'
-                              : 'WhatsApp Communication Adventure (8 Tracks)'}
+                              ? 'डिजिटल बिगिनर एडवेंचर (9 पाठ)'
+                              : 'Digital Beginner Adventure (9 Modules)'}
                           </h4>
                         </div>
                       </div>
                     </div>
 
                     <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
-                      {isBeginner
-                        ? effectiveLanguage === 'ta-IN'
-                          ? 'உங்கள் போனிலிருந்து தொடங்குவோம்! வாட்ஸ்அப்பிற்குச் செல்வதற்கு முன் வைஃபை, மொபைல் இன்டர்நெட், ஹாட்ஸ்பாட் மற்றும் டார்ச் பற்றி அறிந்துகொள்ளுங்கள்.'
-                          : effectiveLanguage === 'hi-IN'
-                          ? 'आइए आपके फोन से शुरुआत करें! व्हाट्सएप पर जाने से पहले वाई-फाई, मोबाइल इंटरनेट, हॉटस्पॉट और टॉर्च सीखें।'
-                          : "Let's start with your phone! Learn Wi-Fi, mobile internet, hotspot and torch before moving on to WhatsApp."
-                        : effectiveLanguage === 'ta-IN'
-                        ? 'செய்திகள், குரல் குறிப்புகள், படங்கள், லைவ் இருப்பிடம், அழைப்புகள் மற்றும் மோசடி அழைப்பு பாதுகாப்பு பயிற்சி.'
+                      {effectiveLanguage === 'ta-IN'
+                        ? 'உங்கள் போனிலிருந்து தொடங்குவோம்! வைஃபை, மொபைல் இன்டர்நெட், ஹாட்ஸ்பாட், டார்ச் மற்றும் அன்றாட தொடர்பு பயிற்சிகளை எளிதாகக் கற்றுக்கொள்ளுங்கள்.'
                         : effectiveLanguage === 'hi-IN'
-                        ? 'मैसेज, वॉयस नोट्स, फोटो, कॉल्स और स्कैम कॉल सुरक्षा की इंटरैक्टिव ट्रेनिंग।'
-                        : 'Chatting, voice notes, photos, live location, audio/video calls, and scam call safety drill.'}
+                        ? 'स्मार्टफोन बेसिक्स (वाई-फाई, मोबाइल डेटा, टॉर्च) और बातचीत के जरूरी टूल्स (मैसेज, वॉयस नोट्स, लोकेशन, कॉल्स) सीखें।'
+                        : "Let's start with your phone! Learn Wi-Fi, mobile internet, hotspot and torch before moving on to everyday communication."}
                     </p>
 
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-[11px] font-bold text-teal-800 dark:text-teal-300">
-                        {isBeginner
-                          ? (completedTotal >= 9
-                              ? effectiveLanguage === 'ta-IN' ? '✅ முழுமையாக முடிந்தது' : '✅ Completed'
-                              : `${completedTotal} / 9 ${effectiveLanguage === 'ta-IN' ? 'முடிக்கப்பட்டது' : 'Completed'}`)
-                          : (learnerProfile?.whatsapp_progress?.is_module_completed
-                              ? effectiveLanguage === 'ta-IN' ? '✅ முழுமையாக முடிந்தது' : '✅ Completed'
-                              : `${completedSegments.length} / 8 ${effectiveLanguage === 'ta-IN' ? 'முடிக்கப்பட்டது' : 'Completed'}`)}
+                        {completedTotal >= 9
+                          ? (effectiveLanguage === 'ta-IN' ? '✅ முழுமையாக முடிந்தது' : effectiveLanguage === 'hi-IN' ? '✅ पूरा हो गया' : '✅ Completed')
+                          : `${completedTotal} / 9 ${effectiveLanguage === 'ta-IN' ? 'முடிக்கப்பட்டது' : effectiveLanguage === 'hi-IN' ? 'पूर्ण' : 'Completed'}`}
                       </span>
                       <button
                         onClick={() => {
@@ -1004,23 +1004,23 @@ export default function FirstTapApp() {
               </div>
 
               <div className="space-y-2.5">
-                {/* Secondary Option: WhatsApp if not primary */}
+                {/* Secondary Option: Digital Beginner Adventure if not primary */}
                 {recommendedPath !== 'WHATSAPP' && (
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between hover:border-teal-300 dark:hover:border-teal-700 transition">
                     <div className="flex items-center space-x-3">
                       <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                        <MessageSquare className="w-4 h-4" />
+                        <Smartphone className="w-4 h-4" />
                       </div>
                       <div>
                         <h5 className="text-xs font-bold text-slate-900 dark:text-white">
                           {effectiveLanguage === 'ta-IN'
-                            ? 'வாட்ஸ்அப் தகவல் தொடர்பு சாகசம்'
+                            ? 'டிஜிட்டல் தொடக்கநிலை சாகசம்'
                             : effectiveLanguage === 'hi-IN'
-                            ? 'व्हाट्सएप संचार एडवेंचर'
-                            : 'WhatsApp Communication Adventure'}
+                            ? 'डिजिटल बिगिनर एडवेंचर'
+                            : 'Digital Beginner Adventure'}
                         </h5>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
-                          {(learnerProfile?.whatsapp_progress?.completed_segments || []).length}/8 {effectiveLanguage === 'ta-IN' ? 'முடிந்தது' : 'Completed'}
+                          {(learnerProfile?.phone_settings_progress?.completed ? 1 : 0) + (learnerProfile?.whatsapp_progress?.completed_segments || []).length}/9 {effectiveLanguage === 'ta-IN' ? 'முடிந்தது' : 'Completed'}
                         </span>
                       </div>
                     </div>
@@ -1218,7 +1218,11 @@ export default function FirstTapApp() {
                 setMascotMood('idle');
               }}
               onOpenDoubt={() => {
-                handleAskQuestion();
+                handleAskQuestion(
+                  'Digital Beginner Adventure trail overview (Phone basics & communication)',
+                  'BEGINNER_TRAIL',
+                  'Digital Beginner Adventure'
+                );
               }}
             />
           </div>
@@ -1320,7 +1324,11 @@ export default function FirstTapApp() {
                 setMascotMood('idle');
               }}
               onOpenDoubt={() => {
-                handleAskQuestion();
+                handleAskQuestion(
+                  'Digital Safety Quest: identifying spam calls, phishing, OTP fraud and digital safety',
+                  'SPAM_SAFETY',
+                  'Digital Safety Quest'
+                );
               }}
             />
           </div>
@@ -1397,7 +1405,11 @@ export default function FirstTapApp() {
                 setMascotMood('idle');
               }}
               onOpenDoubt={() => {
-                handleAskQuestion();
+                handleAskQuestion(
+                  'Spam Call & Fraud Defense interactive practice screen',
+                  'SPAM_DRILL',
+                  'Digital Safety Simulation'
+                );
               }}
             />
           </div>
@@ -1427,7 +1439,11 @@ export default function FirstTapApp() {
                 setMascotMood('idle');
               }}
               onOpenDoubt={() => {
-                handleAskQuestion();
+                handleAskQuestion(
+                  'Business Growth Journey for MSME (WhatsApp Business & Google Maps shop listing)',
+                  'BUSINESS_GROWTH',
+                  'Business Growth Journey'
+                );
               }}
             />
           </div>
@@ -1593,6 +1609,16 @@ export default function FirstTapApp() {
 
       {/* 4. Initial Permission Modal */}
       {!hasStarted && <PermissionModal onStart={handleStartApp} />}
+
+      {/* 5. Global "Ask Selvi" LLM Powered Doubt Resolver Modal */}
+      <AskSelviModal
+        isOpen={isGlobalAskSelviOpen}
+        onClose={() => setIsGlobalAskSelviOpen(false)}
+        language={effectiveLanguage === 'ta-IN' ? 'ta' : effectiveLanguage === 'hi-IN' ? 'hi' : 'en'}
+        lessonId={globalAskSelviLessonId}
+        lessonTitle={globalAskSelviTitle}
+        contextPrompt={globalAskSelviContext}
+      />
     </div>
   );
 }
