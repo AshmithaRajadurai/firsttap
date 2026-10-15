@@ -13,6 +13,9 @@ interface MascotProps {
   isListening: boolean;
   amplitude: number; // 0 to 1
   language?: SupportedLanguage;
+  audioStatus?: 'idle' | 'preparing' | 'speaking' | 'blocked' | 'error' | 'replay';
+  onResumeAutoplay?: () => void;
+  onReplayPrompt?: () => void;
 }
 
 export const Mascot: React.FC<MascotProps> = ({
@@ -21,6 +24,9 @@ export const Mascot: React.FC<MascotProps> = ({
   isListening,
   amplitude,
   language = 'ta-IN',
+  audioStatus = 'idle',
+  onResumeAutoplay,
+  onReplayPrompt,
 }) => {
   const t = UI_TRANSLATIONS[language]?.mascot || UI_TRANSLATIONS['ta-IN'].mascot;
 
@@ -38,10 +44,36 @@ export const Mascot: React.FC<MascotProps> = ({
     }
   }, [mood]);
 
-  // Determine active visual pose & state badge
-  let activePose = 'greeting';
-  let badgeText = t.welcomeBadge;
-  let badgeDotColor = 'bg-orange-500';
+  // Periodic natural eye blinking cycle when idle (every 3.2s - 5.4s, lasting 180ms)
+  const [isBlinking, setIsBlinking] = useState(false);
+
+  useEffect(() => {
+    let blinkTimer: NodeJS.Timeout;
+    let finishTimer: NodeJS.Timeout;
+
+    const scheduleNextBlink = () => {
+      const delay = 3200 + Math.random() * 2200;
+      blinkTimer = setTimeout(() => {
+        setIsBlinking(true);
+        finishTimer = setTimeout(() => {
+          setIsBlinking(false);
+          scheduleNextBlink();
+        }, 180);
+      }, delay);
+    };
+
+    scheduleNextBlink();
+
+    return () => {
+      clearTimeout(blinkTimer);
+      clearTimeout(finishTimer);
+    };
+  }, []);
+
+  // Determine active visual pose & state badge based on FSM and audio lifecycle
+  let activePose = 'idle';
+  let badgeText = t.readyBadge;
+  let badgeDotColor = 'bg-teal-500';
 
   if (mood === 'celebrating' || mood === 'happy') {
     activePose = 'celebrating';
@@ -59,6 +91,10 @@ export const Mascot: React.FC<MascotProps> = ({
     activePose = 'thinking';
     badgeText = t.thinkingBadge;
     badgeDotColor = 'bg-sky-500';
+  } else if (mood === 'waiting') {
+    activePose = 'waiting';
+    badgeText = t.readyToAnswer;
+    badgeDotColor = 'bg-teal-500';
   } else if (isListening || mood === 'listening') {
     activePose = 'listening';
     badgeText = t.listeningBadge;
@@ -67,50 +103,38 @@ export const Mascot: React.FC<MascotProps> = ({
     activePose = 'speaking';
     badgeText = t.speakingBadge;
     badgeDotColor = 'bg-amber-500';
+  } else if (mood === 'language_selection') {
+    activePose = 'language_selection';
+    badgeText = t.welcomeBadge;
+    badgeDotColor = 'bg-orange-500';
   } else if (mood === 'welcome' || mood === 'waving') {
-    activePose = 'greeting';
+    activePose = 'welcome';
     badgeText = t.welcomeBadge;
     badgeDotColor = 'bg-orange-500';
   } else {
-    activePose = 'greeting';
+    activePose = 'idle';
     badgeText = t.readyBadge;
     badgeDotColor = 'bg-teal-500';
   }
 
-  // Periodic natural eye blinking cycle (every 3.2s - 5.4s, lasting 160ms)
-  const [isBlinking, setIsBlinking] = useState(false);
-
-  useEffect(() => {
-    let blinkTimer: NodeJS.Timeout;
-    let finishTimer: NodeJS.Timeout;
-
-    const scheduleNextBlink = () => {
-      const delay = 3200 + Math.random() * 2200;
-      blinkTimer = setTimeout(() => {
-        // Celebrating already has eyes closed/winking
-        if (activePose !== 'celebrating') {
-          setIsBlinking(true);
-          finishTimer = setTimeout(() => {
-            setIsBlinking(false);
-            scheduleNextBlink();
-          }, 160);
-        } else {
-          scheduleNextBlink();
-        }
-      }, delay);
-    };
-
-    scheduleNextBlink();
-
-    return () => {
-      clearTimeout(blinkTimer);
-      clearTimeout(finishTimer);
-    };
-  }, [activePose]);
+  // Audio status override for status badge if active
+  if (audioStatus === 'preparing') {
+    badgeText = t.preparingVoice;
+    badgeDotColor = 'bg-amber-400';
+  } else if (audioStatus === 'speaking') {
+    badgeText = t.speakingStatus;
+    badgeDotColor = 'bg-amber-500';
+  } else if (audioStatus === 'error') {
+    badgeText = t.audioUnavailable;
+    badgeDotColor = 'bg-rose-500';
+  } else if (audioStatus === 'blocked') {
+    badgeText = t.autoplayBlocked;
+    badgeDotColor = 'bg-amber-500';
+  }
 
   // Voice-amplitude responsive parameters for natural speaking cadence
   const dynamicSpeakingScale = isSpeaking ? 1 + amplitude * 0.038 : 1;
-  const dynamicSpeakingY = isSpeaking ? -amplitude * 7 : 0;
+  const dynamicSpeakingY = isSpeaking ? -amplitude * 6 : 0;
 
   return (
     <div className="relative flex flex-col items-center justify-center select-none w-full max-w-[280px] sm:max-w-[320px] mx-auto">
@@ -183,40 +207,38 @@ export const Mascot: React.FC<MascotProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Main Mascot Container with Organic Body Language Motion */}
+      {/* Main Mascot Container with 2:3 aspect ratio perfectly fitting original artwork */}
       <motion.div
-        className="relative w-56 h-80 sm:w-64 sm:h-92 overflow-hidden rounded-3xl shadow-xl border-2 border-amber-200/70 dark:border-slate-700 bg-[#F4EFEA]"
+        className="relative w-[230px] sm:w-[260px] aspect-[2/3] overflow-hidden rounded-3xl shadow-xl border-2 border-amber-200/80 dark:border-slate-700 bg-[#FAF5EF]"
         animate={{
           scale: dynamicSpeakingScale,
           y:
             activePose === 'celebrating'
-              ? [0, -12, 0, -8, 0]
-              : activePose === 'greeting'
+              ? [0, -10, 0, -6, 0]
+              : activePose === 'welcome'
               ? [0, -4, 0, -2, 0]
               : activePose === 'listening'
               ? [-2, -4, -2]
               : activePose === 'encouraging'
-              ? [0, 5, -1, 3, 0]
+              ? [0, 4, -1, 3, 0]
               : activePose === 'retry'
               ? [0, -3, 0]
               : activePose === 'thinking'
               ? [0, -5, 0]
+              : activePose === 'waiting'
+              ? [0, -2, 0]
               : isSpeaking
               ? dynamicSpeakingY
               : [0, -3, 0], // natural idle breathing
-          x:
-            activePose === 'listening'
-              ? [0, 2, 0]
-              : 0,
           rotate:
-            activePose === 'greeting'
-              ? [0, 2.2, -1.2, 2.2, 0] // friendly hand-wave oscillation
+            activePose === 'welcome'
+              ? [0, 2, -1, 2, 0] // friendly hand-wave oscillation
               : activePose === 'listening'
               ? [-1, 2, 0.5, 1.8, -1] // gentle listening head tilt
               : activePose === 'thinking'
               ? [0, -2, -1, -2, 0] // thoughtful upward tilt
               : activePose === 'retry'
-              ? [0, -2.5, 2.5, -1, 0] // inquiring gentle shrug
+              ? [0, -2, 2, -1, 0] // inquiring gentle shrug
               : isSpeaking
               ? [-0.6, 0.8, -0.4, 0.6] // natural speech gesture sway
               : 0,
@@ -225,17 +247,19 @@ export const Mascot: React.FC<MascotProps> = ({
           repeat: Infinity,
           duration:
             activePose === 'celebrating'
-              ? 1.1
-              : activePose === 'greeting'
+              ? 1.2
+              : activePose === 'welcome'
               ? 2.4
               : activePose === 'listening'
               ? 2.8
               : activePose === 'encouraging'
-              ? 1.8
+              ? 2.0
               : activePose === 'retry'
               ? 2.4
               : activePose === 'thinking'
               ? 3.0
+              : activePose === 'waiting'
+              ? 3.2
               : isSpeaking
               ? 1.2
               : 3.6, // smooth idle breathing cycle
@@ -245,52 +269,23 @@ export const Mascot: React.FC<MascotProps> = ({
         {/* State-aware Character Pose with smooth Cross-fade */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={activePose}
-            initial={{ opacity: 0.85, scale: 0.99 }}
+            key={activePose === 'idle' && isBlinking ? 'blink' : activePose}
+            initial={{ opacity: 0.9, scale: 0.995 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0.85 }}
-            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            exit={{ opacity: 0.9 }}
+            transition={{ duration: 0.18, ease: 'easeInOut' }}
             className="relative w-full h-full"
           >
             <Image
-              src={`/mascot/${activePose}.png`}
+              src={`/mascot/${activePose === 'idle' && isBlinking ? 'blink' : activePose}.png`}
               alt="FirstTap Voice Teacher"
               fill
               priority
-              sizes="(max-width: 640px) 240px, 280px"
-              className="object-cover object-top select-none pointer-events-none drop-shadow-sm"
+              sizes="(max-width: 640px) 230px, 260px"
+              className="object-contain object-center select-none pointer-events-none drop-shadow-sm"
             />
           </motion.div>
         </AnimatePresence>
-
-        {/* Natural Eye Blinking Overlay (subtle skin-toned eyelid with eyelashes behind glasses) */}
-        {isBlinking && (
-          <div className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-75">
-            {/* Left Eyelid */}
-            <div
-              className="absolute rounded-[50%/60%] bg-[#E5C2AA] border-b-2 border-[#2F1A12] shadow-xs"
-              style={{
-                top: '34.8%',
-                left: '37.5%',
-                width: '10.2%',
-                height: '3.8%',
-              }}
-            />
-            {/* Right Eyelid */}
-            <div
-              className="absolute rounded-[50%/60%] bg-[#E5C2AA] border-b-2 border-[#2F1A12] shadow-xs"
-              style={{
-                top: '34.2%',
-                left: '55.2%',
-                width: '10.2%',
-                height: '3.8%',
-              }}
-            />
-          </div>
-        )}
-
-        {/* Soft Radial Vignette Blend */}
-        <div className="absolute inset-0 pointer-events-none rounded-3xl ring-1 ring-inset ring-amber-900/10 [mask-image:radial-gradient(ellipse_at_center,transparent_70%,black_100%)] bg-gradient-to-b from-transparent via-transparent to-[#F4EFEA]/80" />
 
         {/* Dynamic Speaking Soundwave Overlay at bottom-right */}
         {isSpeaking && (
@@ -331,30 +326,47 @@ export const Mascot: React.FC<MascotProps> = ({
           </motion.div>
         )}
 
-        {/* Retry / Inquiring Indicator */}
-        {activePose === 'retry' && !isSpeaking && (
+        {/* Autoplay restriction overlay button */}
+        {audioStatus === 'blocked' && onResumeAutoplay && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-amber-600/95 text-white text-[10px] font-bold shadow-md flex items-center space-x-1 backdrop-blur-sm"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center z-20"
           >
-            <span className="text-xs">👂</span>
-            <span>{t.retryBadge || 'Retry'}</span>
+            <button
+              onClick={onResumeAutoplay}
+              className="py-2.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg transition-all animate-bounce cursor-pointer flex items-center space-x-1.5"
+            >
+              <span>{t.autoplayBlocked}</span>
+            </button>
           </motion.div>
         )}
       </motion.div>
 
-      {/* Floating State Badge under Character */}
-      <div className="mt-3 px-4 py-1.5 rounded-full text-xs font-semibold shadow-md flex items-center space-x-2 border transition-all duration-300 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 border-amber-200 dark:border-slate-700">
-        <span
-          className={`w-2.5 h-2.5 rounded-full ${badgeDotColor} ${
-            isSpeaking ? 'animate-pulse' : isListening ? 'animate-ping' : ''
-          }`}
-        />
-        <span className="text-slate-800 dark:text-slate-200 tracking-wide font-medium">
-          {badgeText}
-        </span>
+      {/* Floating State Badge & Replay Control under Character */}
+      <div className="mt-2.5 flex items-center space-x-2">
+        <div className="px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-md flex items-center space-x-2 border transition-all duration-300 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 border-amber-200 dark:border-slate-700">
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${badgeDotColor} ${
+              isSpeaking || audioStatus === 'preparing' ? 'animate-pulse' : isListening ? 'animate-ping' : ''
+            }`}
+          />
+          <span className="text-slate-800 dark:text-slate-200 tracking-wide font-medium">
+            {badgeText}
+          </span>
+        </div>
+
+        {/* Visible Replay Button if speech ended or on error */}
+        {onReplayPrompt && (audioStatus === 'error' || (!isSpeaking && !isListening)) && (
+          <button
+            onClick={onReplayPrompt}
+            title={t.tapToHearAgain}
+            aria-label={t.tapToHearAgain}
+            className="p-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 border border-amber-200 dark:border-slate-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-slate-800 shadow-sm transition-all cursor-pointer text-xs"
+          >
+            🔁
+          </button>
+        )}
       </div>
     </div>
   );

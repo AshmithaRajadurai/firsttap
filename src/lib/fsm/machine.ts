@@ -124,7 +124,7 @@ export class FirstTapFSM {
       speechToSpeak: speech,
       speechSequence: APP_PROMPTS.languageChoiceIntro.promptSequence,
       expectedInputType: 'language',
-      suggestedMood: 'speaking',
+      suggestedMood: 'language_selection',
     };
   }
 
@@ -134,17 +134,19 @@ export class FirstTapFSM {
   public setLanguageManually(lang: SupportedLanguage): FSMTransitionResult {
     this.session.language = lang;
     this.session.consecutiveRetries = 0;
-    return this.moveToAskName();
+    return this.moveToAskName(true);
   }
 
   /**
    * 3. NAME COLLECTION: Ask user's name in selected language
    */
-  public moveToAskName(): FSMTransitionResult {
+  public moveToAskName(includeLanguageGreeting: boolean = false): FSMTransitionResult {
     this.state = 'ASKING_NAME';
     this.session.consecutiveRetries = 0;
 
-    const speech = APP_PROMPTS.askName[this.session.language];
+    const namePrompt = APP_PROMPTS.askName[this.session.language];
+    const confirmPrompt = includeLanguageGreeting ? `${APP_PROMPTS.languageConfirm[this.session.language]} ` : '';
+    const speech = `${confirmPrompt}${namePrompt}`;
     this.session.lastSpokenText = speech;
 
     return {
@@ -303,7 +305,7 @@ export class FirstTapFSM {
     if (matchedLang) {
       this.session.language = matchedLang;
       this.session.consecutiveRetries = 0;
-      return this.moveToAskName();
+      return this.moveToAskName(true);
     }
 
     this.session.consecutiveRetries++;
@@ -318,7 +320,7 @@ export class FirstTapFSM {
       speechToSpeak: speech,
       speechSequence: APP_PROMPTS.languageChoiceIntro.promptSequence,
       expectedInputType: 'language',
-      suggestedMood: 'encouraging',
+      suggestedMood: 'retry',
     };
   }
 

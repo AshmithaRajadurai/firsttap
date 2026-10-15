@@ -9,6 +9,7 @@ export interface VoiceEngineCallbacks {
   onSpeechStarted: () => void;
   onSpeechEnded: () => void;
   onError: (errorMessage: string) => void;
+  onAudioStatusChange?: (status: 'idle' | 'preparing' | 'speaking' | 'blocked' | 'error' | 'replay') => void;
 }
 
 export type ListeningMode = 'language' | 'normal';
@@ -42,12 +43,35 @@ export class VoiceEngine {
   private currentListeningMode: ListeningMode = 'normal';
   private currentSessionId = 0;
 
+  private speechCounter = 0;
+  private pendingAudioResume: (() => void) | null = null;
+  private preferredSpeaker: string = 'ishita';
+
   constructor(callbacks: VoiceEngineCallbacks) {
     this.callbacks = callbacks;
   }
 
   public getState(): VoiceEngineState {
     return this.state;
+  }
+
+  public setSpeaker(speaker: string): void {
+    this.preferredSpeaker = speaker;
+    this.log(`Speaker configured to: [${speaker}]`);
+  }
+
+  public getSpeaker(): string {
+    return this.preferredSpeaker;
+  }
+
+  public resumeBlockedAudio(): boolean {
+    if (this.pendingAudioResume) {
+      const resume = this.pendingAudioResume;
+      this.pendingAudioResume = null;
+      resume();
+      return true;
+    }
+    return false;
   }
 
   private setState(newState: VoiceEngineState) {
@@ -157,13 +181,17 @@ export class VoiceEngine {
     items: { text: string; language: SupportedLanguage }[],
     onFinished?: () => void
   ): Promise<void> {
-    this.log(`speakSequence started with ${items?.length || 0} items.`);
-    // 1. Ensure any prior playback or recording is stopped
+    // 1. Ensure any prior playback or recording is stopped first
     this.stopSpeaking();
     this.stopListening();
 
+    this.speechCounter++;
+    const speechId = this.speechCounter;
+    this.log(`speakSequence (#${speechId}) started with ${items?.length || 0} items.`);
+
     if (!items || items.length === 0) {
       this.setState('IDLE');
+      this.callbacks.onAudioStatusChange?.('idle');
       if (onFinished) onFinished();
       return;
     }
@@ -175,7 +203,7 @@ export class VoiceEngine {
     let currentIndex = 0;
 
     const playNext = async () => {
-      if (!this.isSequenceActive) {
+      if (!this.isSequenceActive || this.speechCounter !== speechId) {
         this.log('speakSequence was stopped or cancelled.');
         return;
       }
@@ -185,9 +213,11 @@ export class VoiceEngine {
         this.setState('WAITING_FOR_AUDIO_TO_FINISH');
         this.isSequenceActive = false;
         this.stopSpeakingVisualizer();
+        this.callbacks.onAudioStatusChange?.('idle');
 
         // Safe 400ms buffer so speaker audio finishes completely before microphone activates
         setTimeout(() => {
+          if (this.speechCounter !== speechId) return;
           this.log('WAITING_FOR_AUDIO_TO_FINISH completed safely. Triggering onFinished callback.');
           this.setState('IDLE');
           this.callbacks.onSpeechEnded();
@@ -200,10 +230,10 @@ export class VoiceEngine {
       this.log(`speakSequence playing item [${currentIndex}/${items.length}] in [${item.language}]: "${item.text}"`);
 
       await this.speakSingleItem(item.text, item.language, () => {
-        if (!this.isSequenceActive) return;
+        if (!this.isSequenceActive || this.speechCounter !== speechId) return;
         // Natural 350ms pause between language choices without dropping out of sequence
         this.sequenceTimer = setTimeout(playNext, 350);
-      });
+      }, speechId);
     };
 
     playNext();
@@ -217,23 +247,31 @@ export class VoiceEngine {
     language: SupportedLanguage,
     onFinished?: () => void
   ): Promise<void> {
-    this.log(`speak called for: "${text}" in [${language}]`);
+    // 1. Ensure any prior playback or recording is stopped first
     this.stopSpeaking();
     this.stopListening();
 
+    this.speechCounter++;
+    const speechId = this.speechCounter;
+    this.log(`speak (#${speechId}) called for: "${text}" in [${language}]`);
+
     this.setState('SPEAKING');
     this.callbacks.onSpeechStarted();
+    this.callbacks.onAudioStatusChange?.('preparing');
 
     await this.speakSingleItem(text, language, () => {
+      if (this.speechCounter !== speechId) return;
       this.setState('WAITING_FOR_AUDIO_TO_FINISH');
       this.stopSpeakingVisualizer();
+      this.callbacks.onAudioStatusChange?.('idle');
 
       setTimeout(() => {
+        if (this.speechCounter !== speechId) return;
         this.setState('IDLE');
         this.callbacks.onSpeechEnded();
         if (onFinished) onFinished();
       }, 250);
-    });
+    }, speechId);
   }
 
   /**
@@ -242,58 +280,131 @@ export class VoiceEngine {
   private async speakSingleItem(
     text: string,
     language: SupportedLanguage,
-    onComplete: () => void
+    onComplete: () => void,
+    speechId: number
   ): Promise<void> {
+    if (this.speechCounter !== speechId) return;
+
+    this.callbacks.onAudioStatusChange?.('preparing');
+
     try {
-      // 1. Try Sarvam TTS API
+      // 1. Request audio from multi-tier TTS route
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
           language_code: language,
+          speaker: this.preferredSpeaker,
         }),
       });
+
+      if (this.speechCounter !== speechId) return;
 
       const data = await res.json();
 
       if (data.audioBase64) {
-        const audioSrc = `data:audio/wav;base64,${data.audioBase64}`;
+        const mimeType = data.mimeType || (data.audioBase64.startsWith('//O') || data.audioBase64.startsWith('SUQz') ? 'audio/mpeg' : 'audio/wav');
+        const audioSrc = `data:${mimeType};base64,${data.audioBase64}`;
         const audio = new Audio(audioSrc);
         this.currentAudioElement = audio;
 
-        this.startSpeakingVisualizer();
+        let hasCompleted = false;
+        let watchdogTimer: NodeJS.Timeout | null = setTimeout(() => {
+          if (!hasCompleted && this.speechCounter === speechId) {
+            hasCompleted = true;
+            this.log('Audio playback safety watchdog triggered (12s). Advancing safely.');
+            cleanup();
+            onComplete();
+          }
+        }, 12000);
+
+        const cleanup = () => {
+          if (watchdogTimer) {
+            clearTimeout(watchdogTimer);
+            watchdogTimer = null;
+          }
+          if (this.currentAudioElement === audio) {
+            this.currentAudioElement = null;
+          }
+        };
+
+        audio.onplay = () => {
+          if (this.speechCounter !== speechId) {
+            audio.pause();
+            return;
+          }
+          this.callbacks.onAudioStatusChange?.('speaking');
+        };
 
         audio.onended = () => {
-          this.log('Sarvam audio playback ended');
-          this.currentAudioElement = null;
+          if (hasCompleted || this.speechCounter !== speechId) return;
+          hasCompleted = true;
+          this.log(`Audio playback finished successfully for [${language}]`);
+          cleanup();
+          this.callbacks.onAudioStatusChange?.('idle');
           onComplete();
         };
 
         audio.onerror = (e) => {
-          this.log('Sarvam audio playback error, falling back to Web Speech:', e);
-          this.currentAudioElement = null;
-          this.speakWithBrowserFallback(text, language, onComplete);
+          if (hasCompleted || this.speechCounter !== speechId) return;
+          hasCompleted = true;
+          this.log(`Audio playback error for [${language}], falling back to browser speech synthesis:`, e);
+          cleanup();
+          this.callbacks.onAudioStatusChange?.('error');
+          this.speakWithBrowserFallback(text, language, onComplete, speechId);
         };
 
-        await audio.play();
-        return;
+        this.startSpeakingVisualizer();
+
+        try {
+          await audio.play();
+          return;
+        } catch (playErr: any) {
+          if (hasCompleted || this.speechCounter !== speechId) return;
+          cleanup();
+
+          if (playErr?.name === 'NotAllowedError') {
+            this.log('Autoplay restriction encountered. Presenting user gesture prompt.');
+            this.callbacks.onAudioStatusChange?.('blocked');
+            this.pendingAudioResume = () => {
+              this.log('User gesture received. Resuming blocked audio playback.');
+              this.currentAudioElement = audio;
+              this.startSpeakingVisualizer();
+              this.callbacks.onAudioStatusChange?.('speaking');
+              audio.play().catch((err) => {
+                this.log('Play after gesture failed, advancing:', err);
+                onComplete();
+              });
+            };
+            return;
+          }
+
+          this.log('audio.play() rejected, attempting browser speech synthesis fallback:', playErr);
+          this.speakWithBrowserFallback(text, language, onComplete, speechId);
+          return;
+        }
       }
     } catch (err) {
       this.log('TTS fetch error, using Web Speech fallback:', err);
     }
 
+    if (this.speechCounter !== speechId) return;
     // 2. Fallback to Browser Speech Synthesis
-    this.speakWithBrowserFallback(text, language, onComplete);
+    this.speakWithBrowserFallback(text, language, onComplete, speechId);
   }
 
   private speakWithBrowserFallback(
     text: string,
     language: SupportedLanguage,
-    onFinished: () => void
+    onFinished: () => void,
+    speechId: number
   ) {
+    if (this.speechCounter !== speechId) return;
+
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       this.log('Browser SpeechSynthesis unavailable');
+      this.callbacks.onAudioStatusChange?.('error');
       onFinished();
       return;
     }
@@ -320,11 +431,34 @@ export class VoiceEngine {
     utterance.pitch = 1.05;
 
     this.startSpeakingVisualizer();
+    this.callbacks.onAudioStatusChange?.('speaking');
+
+    let finished = false;
+    let watchdog: NodeJS.Timeout | null = setTimeout(() => {
+      if (!finished && this.speechCounter === speechId) {
+        finished = true;
+        this.log('Browser SpeechSynthesis watchdog expired (9s). Advancing safely.');
+        this.activeUtterance = null;
+        this.callbacks.onAudioStatusChange?.('idle');
+        onFinished();
+      }
+    }, 9000);
+
+    const safeEnd = () => {
+      if (watchdog) {
+        clearTimeout(watchdog);
+        watchdog = null;
+      }
+      if (finished || this.speechCounter !== speechId) return;
+      finished = true;
+      this.activeUtterance = null;
+      this.callbacks.onAudioStatusChange?.('idle');
+      onFinished();
+    };
 
     utterance.onend = () => {
       this.log('Browser SpeechSynthesis utterance ended');
-      this.activeUtterance = null;
-      onFinished();
+      safeEnd();
     };
 
     utterance.onerror = (e: any) => {
@@ -333,8 +467,8 @@ export class VoiceEngine {
         return;
       }
       this.log('SpeechSynthesis utterance error:', e.error);
-      this.activeUtterance = null;
-      onFinished();
+      this.callbacks.onAudioStatusChange?.('error');
+      safeEnd();
     };
 
     window.speechSynthesis.speak(utterance);
@@ -627,6 +761,8 @@ export class VoiceEngine {
    */
   public stopSpeaking(): void {
     this.isSequenceActive = false;
+    this.speechCounter++;
+    this.pendingAudioResume = null;
 
     if (this.currentAudioElement) {
       this.currentAudioElement.pause();
@@ -645,6 +781,7 @@ export class VoiceEngine {
     }
 
     this.stopSpeakingVisualizer();
+    this.callbacks.onAudioStatusChange?.('idle');
     if (this.state === 'SPEAKING' || this.state === 'PLAYING_LANGUAGE_OPTIONS') {
       this.setState('IDLE');
       this.callbacks.onSpeechEnded();

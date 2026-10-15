@@ -35,6 +35,7 @@ export default function FirstTapApp() {
   const [isApiMode, setIsApiMode] = useState<boolean>(false);
   const [consecutiveRetries, setConsecutiveRetries] = useState<number>(0);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
+  const [audioStatus, setAudioStatus] = useState<'idle' | 'preparing' | 'speaking' | 'blocked' | 'error' | 'replay'>('idle');
 
   // Profile save state
   const [learnerProfile, setLearnerProfile] = useState<LearnerProfile | null>(null);
@@ -142,20 +143,25 @@ export default function FirstTapApp() {
               } else if (transition.nextState === 'ASKING_NAME') {
                 fsm.setState('WAITING_FOR_NAME');
                 setFsmState('WAITING_FOR_NAME');
+                setMascotMood('waiting');
                 triggerListening(session.language, false);
               } else if (transition.nextState === 'ASKING_PHONE_INDEPENDENCE') {
                 fsm.setState('WAITING_FOR_PHONE_ANSWER');
                 setFsmState('WAITING_FOR_PHONE_ANSWER');
+                setMascotMood('waiting');
                 triggerListening(session.language, false);
               } else if (transition.nextState === 'ASKING_LEARNING_GOAL') {
                 fsm.setState('WAITING_FOR_LEARNING_GOAL');
                 setFsmState('WAITING_FOR_LEARNING_GOAL');
+                setMascotMood('waiting');
                 triggerListening(session.language, false);
               } else if (transition.nextState === 'ASKING_BRANCH_QUESTION') {
                 fsm.setState('WAITING_FOR_BRANCH_ANSWER');
                 setFsmState('WAITING_FOR_BRANCH_ANSWER');
+                setMascotMood('waiting');
                 triggerListening(session.language, false);
               } else if (transition.expectedInputType !== 'none') {
+                setMascotMood('waiting');
                 triggerListening(
                   session.language,
                   transition.expectedInputType === 'language'
@@ -222,6 +228,16 @@ export default function FirstTapApp() {
         handleUserSpokenInput(text);
       };
       (window as any).__firstTapGetFSM = () => fsm;
+      (window as any).__firstTapSpeak = (text: string, lang?: SupportedLanguage) => {
+        voiceEngineRef.current?.speak(text, lang || currentLanguage);
+      };
+      (window as any).__firstTapPlayTamil = () => {
+        voiceEngineRef.current?.speak('வணக்கம்! நாம் தமிழில் தொடர்ந்து கற்கலாம். மிக்க மகிழ்ச்சி! உங்கள் பெயர் என்ன?', 'ta-IN');
+      };
+      (window as any).__firstTapSetSpeaker = (speaker: string) => {
+        voiceEngineRef.current?.setSpeaker(speaker);
+        console.log('[FirstTap] Active speaker set to:', speaker);
+      };
     }
   }, [handleUserSpokenInput, fsm]);
 
@@ -269,6 +285,9 @@ export default function FirstTapApp() {
       },
       onError: (errMsg) => {
         console.warn('Voice Engine Error:', errMsg);
+      },
+      onAudioStatusChange: (status) => {
+        setAudioStatus(status);
       },
     });
 
@@ -326,12 +345,26 @@ export default function FirstTapApp() {
 
   // Manual language switch from header
   const handleManualLanguageChange = (lang: SupportedLanguage) => {
+    setCurrentLanguage(lang);
     const res = fsm.setLanguageManually(lang);
     executeTransition(res);
   };
 
   // Manual option selection (accessible button click fallback)
   const handleSelectOptionManually = (text: string) => {
+    if (
+      fsmState === 'WAITING_FOR_LANGUAGE' ||
+      fsmState === 'LANGUAGE_OPTIONS' ||
+      fsmState === 'LANGUAGE_SELECT'
+    ) {
+      if (text.includes('தமிழ்') || text.toLowerCase().includes('tamil')) {
+        setCurrentLanguage('ta-IN');
+      } else if (text.includes('हिंदी') || text.toLowerCase().includes('hindi')) {
+        setCurrentLanguage('hi-IN');
+      } else if (text.toLowerCase().includes('english')) {
+        setCurrentLanguage('en-IN');
+      }
+    }
     setRecognizedUserSpeech(text);
     handleUserSpokenInput(text);
   };
@@ -371,6 +404,9 @@ export default function FirstTapApp() {
             isListening={voiceState === 'LISTENING'}
             amplitude={audioAmplitude}
             language={currentLanguage}
+            audioStatus={audioStatus}
+            onResumeAutoplay={() => voiceEngineRef.current?.resumeBlockedAudio()}
+            onReplayPrompt={handleRepeatPrompt}
           />
         </div>
 

@@ -25,6 +25,14 @@ export interface UITranslation {
     speakingTag: string;
     listeningTag: string;
     thinkingTag: string;
+    preparingVoice: string;
+    speakingStatus: string;
+    listeningStatus: string;
+    processingStatus: string;
+    readyToAnswer: string;
+    audioUnavailable: string;
+    autoplayBlocked: string;
+    tapToHearAgain: string;
   };
 
   // Captions
@@ -162,6 +170,14 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UITranslation> = {
       speakingTag: 'பேசுகிறது...',
       listeningTag: 'கேட்கிறது...',
       thinkingTag: 'சிந்திக்கிறது...',
+      preparingVoice: 'குரல் தயாராகிறது...',
+      speakingStatus: 'பேசுகிறது...',
+      listeningStatus: 'கேட்கிறது...',
+      processingStatus: 'செயலாக்குகிறது...',
+      readyToAnswer: 'பதிலளிக்கத் தயார்',
+      audioUnavailable: 'ஆடியோ கிடைக்கவில்லை — மீண்டும் முயற்சிக்க தட்டவும்',
+      autoplayBlocked: 'குரலைக் கேட்க இங்கே தட்டவும் 🔊',
+      tapToHearAgain: 'மீண்டும் கேட்க தட்டவும் 🔁',
     },
 
     captions: {
@@ -292,6 +308,14 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UITranslation> = {
       speakingTag: 'Speaking...',
       listeningTag: 'Listening...',
       thinkingTag: 'Thinking...',
+      preparingVoice: 'Preparing voice...',
+      speakingStatus: 'Speaking...',
+      listeningStatus: 'Listening...',
+      processingStatus: 'Processing...',
+      readyToAnswer: 'Ready to answer',
+      audioUnavailable: 'Audio unavailable — tap to retry',
+      autoplayBlocked: 'Tap here to hear voice 🔊',
+      tapToHearAgain: 'Tap to hear again 🔁',
     },
 
     captions: {
@@ -422,6 +446,14 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UITranslation> = {
       speakingTag: 'बोल रहा है...',
       listeningTag: 'सुन रहा है...',
       thinkingTag: 'सोच रहा है...',
+      preparingVoice: 'आवाज़ तैयार हो रही है...',
+      speakingStatus: 'बोल रहा है...',
+      listeningStatus: 'सुन रहा है...',
+      processingStatus: 'प्रोसेसिंग...',
+      readyToAnswer: 'उत्तर देने के लिए तैयार',
+      audioUnavailable: 'ऑडियो उपलब्ध नहीं — पुनः प्रयास करें',
+      autoplayBlocked: 'आवाज़ सुनने के लिए यहाँ टैप करें 🔊',
+      tapToHearAgain: 'दोबारा सुनने के लिए टैप करें 🔁',
     },
 
     captions: {

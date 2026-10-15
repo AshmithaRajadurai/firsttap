@@ -19,7 +19,9 @@ export type MascotMood =
   | 'celebrating'
   | 'concerned'
   | 'retry'
-  | 'explaining';
+  | 'explaining'
+  | 'language_selection'
+  | 'waiting';
 
 export type VoiceEngineState =
   | 'IDLE'
