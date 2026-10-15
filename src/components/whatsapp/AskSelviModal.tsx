@@ -144,7 +144,7 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 z-50 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 z-50 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border-2 border-amber-300 dark:border-amber-500/50 flex flex-col max-h-[85vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">

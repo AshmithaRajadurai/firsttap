@@ -1323,13 +1323,6 @@ export default function FirstTapApp() {
                 navigateToState('ASSESSMENT_COMPLETE');
                 setMascotMood('idle');
               }}
-              onOpenDoubt={() => {
-                handleAskQuestion(
-                  'Digital Safety Quest: identifying spam calls, phishing, OTP fraud and digital safety',
-                  'SPAM_SAFETY',
-                  'Digital Safety Quest'
-                );
-              }}
             />
           </div>
         )}
