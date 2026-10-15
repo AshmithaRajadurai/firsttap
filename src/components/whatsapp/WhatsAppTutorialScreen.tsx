@@ -34,6 +34,7 @@ import { voiceManager } from './voice';
 
 export interface WhatsAppTutorialScreenProps {
   onBackToMainMenu?: () => void;
+  language?: 'ta' | 'hi' | 'en';
 }
 
 interface ChatContactItem {
@@ -357,6 +358,7 @@ const generatePracticeTask = (lessonId: number): { task: PracticeTask; steps: Pr
 
 export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
   onBackToMainMenu,
+  language = 'en',
 }) => {
   // Lesson state
   const [currentLessonId, setCurrentLessonId] = useState<number>(1);
@@ -472,12 +474,12 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
         lastSpokenKeyRef.current = key;
       }
 
-      await voiceManager.speakAsync(text, 'en', {
+      await voiceManager.speakAsync(text, language, {
         fallbackTimeoutMs: 15000,
         cancelPrevious: false,
       });
     },
-    [isVoiceMuted]
+    [isVoiceMuted, language]
   );
 
   // Setup practice step idle timers
@@ -498,7 +500,7 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
       // Timer 2: after 7 seconds, repeat the voice instruction
       idleVoiceTimerRef.current = setTimeout(() => {
         if (!isVoiceMuted) {
-          voiceManager.speakAsync(step.instruction, 'en', {
+          voiceManager.speakAsync(step.instruction, language, {
             fallbackTimeoutMs: 12000,
             cancelPrevious: false,
           });
@@ -507,7 +509,7 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
         // Repeat reminder every 7 seconds until the user acts
         idleVoiceIntervalRef.current = setInterval(() => {
           if (!isVoiceMuted) {
-            voiceManager.speakAsync(step.instruction, 'en', {
+            voiceManager.speakAsync(step.instruction, language, {
               fallbackTimeoutMs: 12000,
               cancelPrevious: false,
             });
@@ -515,7 +517,7 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
         }, 7000);
       }, 7000);
     },
-    [clearPracticeIdleTimers, safeSpeak, isVoiceMuted]
+    [clearPracticeIdleTimers, safeSpeak, isVoiceMuted, language]
   );
 
   // Reset simulator state for a specific lesson & phase
@@ -588,7 +590,7 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
         if (lastSpokenKeyRef.current !== stepKey) {
           lastSpokenKeyRef.current = stepKey;
           if (!isVoiceMuted) {
-            await voiceManager.speakAsync(step.caption, 'en', {
+            await voiceManager.speakAsync(step.caption, language, {
               fallbackTimeoutMs: 15000,
               cancelPrevious: false,
             });
@@ -666,9 +668,15 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
         setPointerVisible(false);
 
         // Step A: Voice and caption say "Now it's your turn. Try it yourself."
-        setDemoCaption("Now it's your turn. Try it yourself.");
+        const turnNotice =
+          language === 'ta'
+            ? 'இப்போது உங்கள் முறை. நீங்களே செய்து பழகுங்கள்!'
+            : language === 'hi'
+            ? 'अब आपकी बारी है। खुद करके अभ्यास करें!'
+            : "Now it's your turn. Try it yourself.";
+        setDemoCaption(turnNotice);
         if (!isVoiceMuted) {
-          await voiceManager.speakAsync("Now it's your turn. Try it yourself.", 'en', {
+          await voiceManager.speakAsync(turnNotice, language, {
             fallbackTimeoutMs: 8000,
           });
         }
@@ -739,11 +747,16 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
       e.stopPropagation();
 
       setIsWrongTargetShaking(true);
-      setIsTargetGlowing(true); // Keep correct target highlighted!
-      setWrongTapMessage('Not this one, tap the glowing button');
+      const wrongMsg =
+        language === 'ta'
+          ? 'இங்கு தொடாதீர்கள், ஒளிரும் பொத்தானைத் தொடவும்!'
+          : language === 'hi'
+          ? 'यहाँ नहीं, चमकते हुए बटन को दबाएं!'
+          : 'Not this one, tap the glowing button';
+      setWrongTapMessage(wrongMsg);
 
       if (!isVoiceMuted) {
-        voiceManager.speakAsync('Not this one, tap the glowing button', 'en', {
+        voiceManager.speakAsync(wrongMsg, language, {
           fallbackTimeoutMs: 5000,
           cancelPrevious: true,
         });
@@ -797,9 +810,15 @@ export const WhatsAppTutorialScreen: React.FC<WhatsAppTutorialScreenProps> = ({
     if (phase === 'PRACTICE') {
       const typedName = newContactName.trim();
       if (!typedName) {
-        setWrongTapMessage(`Please type the name: ${taskName}`);
+        const typeMsg =
+          language === 'ta'
+            ? `தயவுசெய்து பெயரை உள்ளிடவும்: ${taskName}`
+            : language === 'hi'
+            ? `कृपया नाम लिखें: ${taskName}`
+            : `Please type exactly: ${taskName}`;
+        setWrongTapMessage(typeMsg);
         if (!isVoiceMuted) {
-          voiceManager.speakAsync(`Please type exactly: ${taskName}`, 'en', { cancelPrevious: true });
+          voiceManager.speakAsync(typeMsg, language, { cancelPrevious: true });
         }
         return;
       }

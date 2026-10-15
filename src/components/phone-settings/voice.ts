@@ -248,8 +248,10 @@ class PhoneSettingsVoiceManager {
   private audioCache: Map<string, string> = new Map();
   private currentAudio: HTMLAudioElement | null = null;
   private currentAbortController: AbortController | null = null;
+  private speechCounter: number = 0;
 
   public stop() {
+    this.speechCounter++;
     if (this.currentAbortController) {
       this.currentAbortController.abort();
       this.currentAbortController = null;
@@ -273,7 +275,7 @@ class PhoneSettingsVoiceManager {
     this.notifySpeaking(false);
   }
 
-  // Enhanced speak: Uses Gemini 3.8 Flash Lite TTS for ultra-natural native Tamil voice
+  // Enhanced speak: Uses Sarvam Bulbul / AI TTS with canonical female voice
   public async speak(text: string, lang: LanguageCode, onEnd?: () => void) {
     if (this.isMuted) {
       if (onEnd) setTimeout(onEnd, 1000);
@@ -281,6 +283,7 @@ class PhoneSettingsVoiceManager {
     }
 
     this.stop();
+    const currentSpeechId = ++this.speechCounter;
     this.notifySpeaking(true);
 
     const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
@@ -303,7 +306,7 @@ class PhoneSettingsVoiceManager {
           signal: this.currentAbortController.signal,
         });
 
-        if (res.ok) {
+        if (res.ok && currentSpeechId === this.speechCounter && !this.isMuted) {
           const data = await res.json();
           if (data.audioDataUrl) {
             audioUrl = data.audioDataUrl;
@@ -317,9 +320,14 @@ class PhoneSettingsVoiceManager {
         }
       } catch (err: any) {
         if (err.name !== 'AbortError') {
-          console.warn('[tts] AI TTS fetch error, falling back to browser voice:', err);
+          console.warn('[tts] AI TTS fetch error:', err);
         }
       }
+    }
+
+    if (currentSpeechId !== this.speechCounter || this.isMuted) {
+      this.notifySpeaking(false);
+      return;
     }
 
     // If AI audio is available, play natural high-fidelity wav audio
@@ -337,22 +345,32 @@ class PhoneSettingsVoiceManager {
         audio.onerror = () => {
           this.notifySpeaking(false);
           this.currentAudio = null;
-          this.fallbackBrowserSpeak(text, lang, onEnd);
+          if (currentSpeechId === this.speechCounter) {
+            this.fallbackBrowserSpeak(text, lang, onEnd, currentSpeechId);
+          }
         };
 
         await audio.play();
         return;
-      } catch (playErr) {
+      } catch (playErr: any) {
+        if (playErr?.name === 'AbortError' || currentSpeechId !== this.speechCounter) {
+          return;
+        }
         console.warn('[tts] Audio play failed, falling back:', playErr);
       }
     }
 
+    if (currentSpeechId !== this.speechCounter || this.isMuted) {
+      this.notifySpeaking(false);
+      return;
+    }
+
     // Fallback: Browser Web Speech API
-    this.fallbackBrowserSpeak(text, lang, onEnd);
+    this.fallbackBrowserSpeak(text, lang, onEnd, currentSpeechId);
   }
 
-  private fallbackBrowserSpeak(text: string, lang: LanguageCode, onEnd?: () => void) {
-    if (this.isMuted || !this.synth) {
+  private fallbackBrowserSpeak(text: string, lang: LanguageCode, onEnd?: () => void, speechId?: number) {
+    if (this.isMuted || !this.synth || (speechId && speechId !== this.speechCounter)) {
       this.notifySpeaking(false);
       if (onEnd) setTimeout(onEnd, 1000);
       return;

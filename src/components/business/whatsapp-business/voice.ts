@@ -57,6 +57,7 @@ class WABusinessVoiceManager {
   }
 
   public stop() {
+    this.speechCounter++;
     if (this.synth) {
       try {
         this.synth.cancel();
@@ -198,14 +199,24 @@ class WABusinessVoiceManager {
         audio.onerror = () => {
           this.notifySpeaking(false);
           this.currentAudio = null;
-          this.fallbackBrowserSpeak(text, bcp47, onEnd, currentSpeechId);
+          if (currentSpeechId === this.speechCounter) {
+            this.fallbackBrowserSpeak(text, bcp47, onEnd, currentSpeechId);
+          }
         };
 
         await audio.play();
         return;
-      } catch (playErr) {
+      } catch (playErr: any) {
+        if (playErr?.name === 'AbortError' || currentSpeechId !== this.speechCounter) {
+          return;
+        }
         console.warn('[WABusinessVoice] Audio play error, using browser fallback:', playErr);
       }
+    }
+
+    if (currentSpeechId !== this.speechCounter || this.isMuted) {
+      this.notifySpeaking(false);
+      return;
     }
 
     // 2. Browser fallback with guaranteed female voice

@@ -122,8 +122,8 @@ export function findBestFemaleVoice(
   const anyNonMale = voices.find((v) => !isExplicitlyMale(v));
   if (anyNonMale) return anyNonMale;
 
-  // Fallback to first voice
-  return voices[0] || null;
+  // Never fall back to explicitly male voices (e.g. David, Mark, Ravi, Valluvar)
+  return null;
 }
 
 /**

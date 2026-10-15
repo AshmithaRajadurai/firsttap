@@ -675,6 +675,8 @@ export const FirstTapWhatsApp: React.FC<FirstTapWhatsAppProps> = ({
       voiceManager.speak(
         language === 'ta'
           ? 'லக்ஷ்மியிடமிருந்து பதில் வந்தது: நன்றாக இருக்கிறேன்.'
+          : language === 'hi'
+          ? 'लक्ष्मी से जवाब आया: मैं ठीक हूँ, धन्यवाद।'
           : 'Reply received: I am doing well, thank you!',
         language
       );

@@ -88,6 +88,7 @@ class SpamVoiceManager {
   }
 
   public stop() {
+    this.speechCounter++;
     if (this.synth) {
       this.synth.cancel();
     }
@@ -174,7 +175,11 @@ class SpamVoiceManager {
         audio.onended = cleanup;
         audio.onerror = cleanup;
 
-        audio.play().catch(() => {
+        audio.play().catch((playErr: any) => {
+          if (playErr?.name === 'AbortError') {
+            cleanup();
+            return;
+          }
           cleanup();
         });
       });

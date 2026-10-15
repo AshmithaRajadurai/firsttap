@@ -59,6 +59,7 @@ class VoiceManager {
   }
 
   public stop() {
+    this.speechCounter++;
     if (this.synth) {
       this.synth.cancel();
     }
@@ -149,10 +150,18 @@ class VoiceManager {
           cleanup();
         };
 
-        audio.play().catch(() => {
+        audio.play().catch((playErr: any) => {
+          if (playErr?.name === 'AbortError') {
+            cleanup();
+            return;
+          }
           cleanup();
         });
       });
+    }
+
+    if (currentSpeechId !== this.speechCounter || this.isMuted) {
+      return;
     }
 
     // 2. Web Speech API Fallback with guaranteed female voice tuning

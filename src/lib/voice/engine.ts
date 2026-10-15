@@ -395,6 +395,11 @@ export class VoiceEngine {
             return;
           }
 
+          if (playErr?.name === 'AbortError') {
+            this.log('audio.play() was interrupted or cancelled. Skipping fallback.');
+            return;
+          }
+
           this.log('audio.play() rejected, attempting browser speech synthesis fallback:', playErr);
           this.speakWithBrowserFallback(text, language, onComplete, speechId);
           return;

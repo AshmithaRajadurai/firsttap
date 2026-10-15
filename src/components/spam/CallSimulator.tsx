@@ -205,7 +205,7 @@ export const CallSimulator: React.FC<CallSimulatorProps> = ({
   }, [phase, lesson, language, resetToPhase]);
 
   // Advance practice step
-  const advancePractice = () => {
+  const advancePractice = (options?: { skipAutoVoice?: boolean }) => {
     if (phase !== 'PRACTICE') return;
 
     const nextIndex = practiceStepIndex + 1;
@@ -216,7 +216,7 @@ export const CallSimulator: React.FC<CallSimulatorProps> = ({
     } else {
       setPracticeStepIndex(nextIndex);
       const nextStep = practiceTask.steps[nextIndex];
-      if (nextStep) {
+      if (nextStep && !options?.skipAutoVoice) {
         spamVoiceManager.speak(nextStep.instruction[language], language);
       }
     }
@@ -265,19 +265,24 @@ export const CallSimulator: React.FC<CallSimulatorProps> = ({
     setScreen('SPAM_CALL_ACTIVE');
     setSpamAttemptedPin('');
     setSpamWarningAlert(null);
-    advancePractice();
+    const targetNextStep = practiceTask.steps[practiceStepIndex + 1];
+    advancePractice({ skipAutoVoice: true });
 
     if (phase === 'PRACTICE') {
-      setTimeout(() => {
-        spamVoiceManager.speak(lesson.scammerSpeech[language], language);
-      }, 350);
+      // First let the scammer dialogue speak naturally, then seamlessly deliver Selvi's safety guidance
+      spamVoiceManager.speak(lesson.scammerSpeech[language], language, () => {
+        if (targetNextStep) {
+          spamVoiceManager.speak(targetNextStep.instruction[language], language);
+        }
+      });
     }
   };
 
   const handleHangupCall = () => {
     setScreen('SPAM_BLOCKED');
     setSpamWarningAlert(null);
-    advancePractice();
+    const targetNextStep = practiceTask.steps[practiceStepIndex + 1];
+    advancePractice({ skipAutoVoice: true });
 
     if (phase === 'PRACTICE') {
       const hangupVoice =
@@ -286,7 +291,8 @@ export const CallSimulator: React.FC<CallSimulatorProps> = ({
           : language === 'hi'
           ? 'शाबाश! आपने कॉल काट दिया। अब इस नंबर को ब्लॉक और रिपोर्ट करें।'
           : 'Great move! You hung up on the fraudster. Now block and report this number.';
-      spamVoiceManager.speak(hangupVoice, language);
+      const fullNotice = targetNextStep ? `${hangupVoice} ${targetNextStep.instruction[language]}` : hangupVoice;
+      spamVoiceManager.speak(fullNotice, language);
     }
   };
 

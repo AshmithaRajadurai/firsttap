@@ -215,8 +215,10 @@ export const MessageSimulator: React.FC<MessageSimulatorProps> = ({
         const caption = step.caption[language] || step.caption.en;
         setDemoCaption(caption);
 
-        spamVoiceManager.speak(caption, language);
-        await sleep(1000);
+        await spamVoiceManager.speakAsync(caption, language, {
+          fallbackTimeoutMs: 12000,
+        });
+        await sleep(600);
 
         if (abortDemoRef.current || !isSubscribed) return;
 
@@ -255,8 +257,8 @@ export const MessageSimulator: React.FC<MessageSimulatorProps> = ({
             ? 'अब आपकी बारी है। स्वयं करके देखें।'
             : "Now it's your turn. Try it yourself.";
         setDemoCaption(promptText);
-        spamVoiceManager.speak(promptText, language);
-        await sleep(1000);
+        await spamVoiceManager.speakAsync(promptText, language, { fallbackTimeoutMs: 8000 });
+        await sleep(500);
 
         if (isSubscribed && !abortDemoRef.current) {
           resetToPhase('PRACTICE');
