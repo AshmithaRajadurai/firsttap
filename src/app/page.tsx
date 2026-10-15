@@ -48,6 +48,7 @@ import {
   WhatsAppBusinessSimulatorScreen,
   GoogleMapsSimulatorScreen,
 } from '@/components/business';
+import { PhoneSettingsSimulatorScreen } from '@/components/phone-settings';
 import { UI_TRANSLATIONS } from '@/lib/i18n/translations';
 import { CATEGORIES_META, LEARNING_PATHS_META } from '@/lib/lessons/catalog';
 import { logger } from '@/lib/logger';
@@ -539,6 +540,25 @@ export default function FirstTapApp() {
         ? `नमस्ते ${name}! आइए धोखाधड़ी पहचानना और अपने पैसे सुरक्षित रखना सीखें!`
         : `Hello ${name}! Let's learn to spot scams and protect your money!`;
     }
+    const isBeginner = !learnerProfile?.primary_category || learnerProfile.primary_category === 'DIGITAL_BEGINNER';
+    const isPhoneBasicsDone = Boolean(learnerProfile?.phone_settings_progress?.completed);
+
+    if (isBeginner) {
+      if (!isPhoneBasicsDone) {
+        return effectiveLanguage === 'ta-IN'
+          ? `வணக்கம் ${name}! உங்கள் போனிலிருந்து தொடங்குவோம்! வாட்ஸ்அப்பிற்குச் செல்வதற்கு முன் வைஃபை, மொபைல் இன்டர்நெட், ஹாட்ஸ்பாட் மற்றும் டார்ச் பற்றி அறிந்துகொள்ளுங்கள்.`
+          : effectiveLanguage === 'hi-IN'
+          ? `नमस्ते ${name}! आइए आपके फोन से शुरुआत करें! व्हाट्सएप पर जाने से पहले वाई-फाई, मोबाइल इंटरनेट, हॉटस्पॉट और टॉर्च सीखें।`
+          : `Hello ${name}! Let's start with your phone! Learn Wi-Fi, mobile internet, hotspot and torch before moving on to WhatsApp.`;
+      } else {
+        return effectiveLanguage === 'ta-IN'
+          ? `வணக்கம் ${name}! போன் அமைப்புகளை வெற்றிகரமாகக் கற்றுவிட்டீர்கள்! இப்போது வாட்ஸ்அப் முகப்புப் பக்கப் பயணத்தைத் தொடங்குவோம்!`
+          : effectiveLanguage === 'hi-IN'
+          ? `नमस्ते ${name}! आपने फोन सेटिंग्स सीख ली हैं! अब आइए व्हाट्सएप होम पेज टूर शुरू करें!`
+          : `Hello ${name}! You mastered phone settings! Now let's continue to WhatsApp Home Page Tour (W0)!`;
+      }
+    }
+
     return effectiveLanguage === 'ta-IN'
       ? `வணக்கம் ${name}! வாட்ஸ்அப் பாடங்களை ஒரு நேரத்தில் ஒரு படியாகக் கற்போம்!`
       : effectiveLanguage === 'hi-IN'
@@ -549,6 +569,7 @@ export default function FirstTapApp() {
   const t = UI_TRANSLATIONS[effectiveLanguage] || UI_TRANSLATIONS['en-IN'];
 
   const isDedicatedLearningModule =
+    fsmState === 'PHONE_SETTINGS_MODULE' ||
     fsmState === 'WHATSAPP_PATH' ||
     fsmState === 'WHATSAPP_MODULE' ||
     fsmState === 'SPAM_PATH' ||
@@ -756,67 +777,100 @@ export default function FirstTapApp() {
                 </h4>
               </div>
 
-              {/* RECOMMENDED PATH 1: WHATSAPP (Digital Beginners / Communication) */}
-              {recommendedPath === 'WHATSAPP' && (
-                <div className="relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-teal-50 via-emerald-50 to-teal-100/60 dark:from-teal-950/60 dark:via-emerald-950/50 dark:to-teal-900/40 border-3 border-teal-500 shadow-xl space-y-3.5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-teal-500/20">
-                        <MessageSquare className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shadow-xs mb-1">
-                          {effectiveLanguage === 'ta-IN' ? 'தொடங்க வேண்டிய பாதை' : effectiveLanguage === 'hi-IN' ? 'प्राथमिक पाथ' : 'Primary Path'}
-                        </span>
-                        <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-snug">
-                          {effectiveLanguage === 'ta-IN'
-                            ? 'வாட்ஸ்அப் தகவல் தொடர்பு சாகசம் (8 பயிற்சிகள்)'
-                            : effectiveLanguage === 'hi-IN'
-                            ? 'व्हाट्सएप संचार एडवेंचर (8 पाठ)'
-                            : 'WhatsApp Communication Adventure (8 Tracks)'}
-                        </h4>
+              {/* RECOMMENDED PATH 1: WHATSAPP / SMARTPHONE BASICS (Digital Beginners) */}
+              {recommendedPath === 'WHATSAPP' && (() => {
+                const isBeginner = !learnerProfile?.primary_category || learnerProfile.primary_category === 'DIGITAL_BEGINNER';
+                const isPhoneBasicsDone = Boolean(learnerProfile?.phone_settings_progress?.completed);
+                const completedSegments = learnerProfile?.whatsapp_progress?.completed_segments || [];
+                const completedTotal = (isPhoneBasicsDone ? 1 : 0) + completedSegments.length;
+
+                return (
+                  <div className="relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-teal-50 via-emerald-50 to-teal-100/60 dark:from-teal-950/60 dark:via-emerald-950/50 dark:to-teal-900/40 border-3 border-teal-500 shadow-xl space-y-3.5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-teal-500/20">
+                          {isBeginner && !isPhoneBasicsDone ? (
+                            <Smartphone className="w-6 h-6" />
+                          ) : (
+                            <MessageSquare className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shadow-xs mb-1">
+                            {effectiveLanguage === 'ta-IN' ? 'தொடங்க வேண்டிய பாதை' : effectiveLanguage === 'hi-IN' ? 'प्राथमिक पाथ' : 'Primary Path'}
+                          </span>
+                          <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-snug">
+                            {isBeginner
+                              ? effectiveLanguage === 'ta-IN'
+                                ? 'ஸ்மார்ட்போன் அடிப்படைகள் & வாட்ஸ்அப் சாகசம் (9 பயிற்சிகள்)'
+                                : effectiveLanguage === 'hi-IN'
+                                ? 'स्मार्टफोन बेसिक्स और व्हाट्सएप एडवेंचर (9 पाठ)'
+                                : 'Smartphone Basics & WhatsApp Adventure (9 Modules)'
+                              : effectiveLanguage === 'ta-IN'
+                              ? 'வாட்ஸ்அப் தகவல் தொடர்பு சாகசம் (8 பயிற்சிகள்)'
+                              : effectiveLanguage === 'hi-IN'
+                              ? 'व्हाट्सएप संचार एडवेंचर (8 पाठ)'
+                              : 'WhatsApp Communication Adventure (8 Tracks)'}
+                          </h4>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
-                    {effectiveLanguage === 'ta-IN'
-                      ? 'செய்திகள், குரல் குறிப்புகள், படங்கள், லைவ் இருப்பிடம், அழைப்புகள் மற்றும் மோசடி அழைப்பு பாதுகாப்பு பயிற்சி.'
-                      : effectiveLanguage === 'hi-IN'
-                      ? 'मैसेज, वॉयस नोट्स, फोटो, कॉल्स और स्कैम कॉल सुरक्षा की इंटरैक्टिव ट्रेनिंग।'
-                      : 'Chatting, voice notes, photos, live location, audio/video calls, and scam call safety drill.'}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[11px] font-bold text-teal-800 dark:text-teal-300">
-                      {learnerProfile?.whatsapp_progress?.is_module_completed
+                    <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                      {isBeginner
                         ? effectiveLanguage === 'ta-IN'
-                          ? '✅ முழுமையாக முடிந்தது'
-                          : '✅ Completed'
-                        : `${(learnerProfile?.whatsapp_progress?.completed_segments || []).length} / 8 ${
-                            effectiveLanguage === 'ta-IN' ? 'முடிக்கப்பட்டது' : 'Completed'
-                          }`}
-                    </span>
-                    <button
-                      onClick={() => {
-                        navigateToState('WHATSAPP_PATH');
-                      }}
-                      className="min-h-[44px] py-2.5 px-6 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-teal-600/30 transition flex items-center justify-center space-x-2 cursor-pointer hover:scale-102 active:scale-98"
-                    >
-                      <span>
-                        {(learnerProfile?.whatsapp_progress?.completed_segments || []).length > 0
-                          ? effectiveLanguage === 'ta-IN'
-                            ? 'பயணத்தை தொடரவும்'
-                            : 'Continue Adventure'
-                          : effectiveLanguage === 'ta-IN'
-                          ? 'சாகசத்தை தொடங்கு'
-                          : 'Start Adventure'}
+                          ? 'உங்கள் போனிலிருந்து தொடங்குவோம்! வாட்ஸ்அப்பிற்குச் செல்வதற்கு முன் வைஃபை, மொபைல் இன்டர்நெட், ஹாட்ஸ்பாட் மற்றும் டார்ச் பற்றி அறிந்துகொள்ளுங்கள்.'
+                          : effectiveLanguage === 'hi-IN'
+                          ? 'आइए आपके फोन से शुरुआत करें! व्हाट्सएप पर जाने से पहले वाई-फाई, मोबाइल इंटरनेट, हॉटस्पॉट और टॉर्च सीखें।'
+                          : "Let's start with your phone! Learn Wi-Fi, mobile internet, hotspot and torch before moving on to WhatsApp."
+                        : effectiveLanguage === 'ta-IN'
+                        ? 'செய்திகள், குரல் குறிப்புகள், படங்கள், லைவ் இருப்பிடம், அழைப்புகள் மற்றும் மோசடி அழைப்பு பாதுகாப்பு பயிற்சி.'
+                        : effectiveLanguage === 'hi-IN'
+                        ? 'मैसेज, वॉयस नोट्स, फोटो, कॉल्स और स्कैम कॉल सुरक्षा की इंटरैक्टिव ट्रेनिंग।'
+                        : 'Chatting, voice notes, photos, live location, audio/video calls, and scam call safety drill.'}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] font-bold text-teal-800 dark:text-teal-300">
+                        {isBeginner
+                          ? (completedTotal >= 9
+                              ? effectiveLanguage === 'ta-IN' ? '✅ முழுமையாக முடிந்தது' : '✅ Completed'
+                              : `${completedTotal} / 9 ${effectiveLanguage === 'ta-IN' ? 'முடிக்கப்பட்டது' : 'Completed'}`)
+                          : (learnerProfile?.whatsapp_progress?.is_module_completed
+                              ? effectiveLanguage === 'ta-IN' ? '✅ முழுமையாக முடிந்தது' : '✅ Completed'
+                              : `${completedSegments.length} / 8 ${effectiveLanguage === 'ta-IN' ? 'முடிக்கப்பட்டது' : 'Completed'}`)}
                       </span>
-                      <ArrowRight className="w-4 h-4 text-teal-100" />
-                    </button>
+                      <button
+                        onClick={() => {
+                          if (isBeginner && !isPhoneBasicsDone) {
+                            navigateToState('PHONE_SETTINGS_MODULE');
+                          } else {
+                            navigateToState('WHATSAPP_PATH');
+                          }
+                        }}
+                        className="min-h-[44px] py-2.5 px-6 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-teal-600/30 transition flex items-center justify-center space-x-2 cursor-pointer hover:scale-102 active:scale-98"
+                      >
+                        <span>
+                          {isBeginner && !isPhoneBasicsDone
+                            ? effectiveLanguage === 'ta-IN'
+                              ? 'ஸ்மார்ட்போன் அடிப்படைகளைத் தொடங்கு'
+                              : effectiveLanguage === 'hi-IN'
+                              ? 'स्मार्टफोन बेसिक्स शुरू करें'
+                              : 'Start Smartphone Basics'
+                            : completedTotal > 0
+                            ? effectiveLanguage === 'ta-IN'
+                              ? 'பயணத்தை தொடரவும்'
+                              : 'Continue Adventure'
+                            : effectiveLanguage === 'ta-IN'
+                            ? 'சாகசத்தை தொடங்கு'
+                            : 'Start Adventure'}
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-teal-100" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* RECOMMENDED PATH 2: SPAM & DIGITAL FRAUD (Digital Safety) */}
               {recommendedPath === 'SPAM' && (
@@ -1074,6 +1128,69 @@ export default function FirstTapApp() {
           </div>
         )}
 
+        {/* Module 1: Dedicated Smartphone Basics Simulation (Module 1 for Digital Beginners) */}
+        {fsmState === 'PHONE_SETTINGS_MODULE' && (
+          <div className="w-full min-h-screen flex flex-col items-center py-2 animate-in fade-in duration-200">
+            {/* Prominent Sticky Back to Learning Path Button */}
+            <div className="w-full max-w-4xl mx-auto mb-2 px-2 flex items-center justify-between">
+              <button
+                data-demo-id="global-back-to-phone-settings-path-btn"
+                onClick={() => {
+                  navigateToState('WHATSAPP_PATH');
+                  setMascotMood('idle');
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-black shadow-lg border border-blue-500 cursor-pointer active:scale-95 transition min-h-[44px]"
+                title="Return to Digital Beginner Learning Path"
+              >
+                <ArrowLeft className="w-4 h-4 text-amber-300" />
+                <span>
+                  {effectiveLanguage === 'ta-IN'
+                    ? '← கற்றல் பாதைக்கு திரும்பு'
+                    : effectiveLanguage === 'hi-IN'
+                    ? '← लर्निंग पाथ पर वापस'
+                    : '← Back to Learning Path'}
+                </span>
+              </button>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                {effectiveLanguage === 'ta-IN'
+                  ? 'ஸ்மார்ட்போன் அமைப்புகள் பாடம்'
+                  : effectiveLanguage === 'hi-IN'
+                  ? 'स्मार्टफोन सेटिंग्स पाठ'
+                  : 'Smartphone Basics Lesson'}
+              </span>
+            </div>
+
+            <PhoneSettingsSimulatorScreen
+              language={effectiveLanguage === 'ta-IN' ? 'ta' : effectiveLanguage === 'hi-IN' ? 'hi' : 'en'}
+              onBackToMainMenu={() => {
+                navigateToState('WHATSAPP_PATH');
+                setMascotMood('idle');
+              }}
+              onSwitchToWhatsApp={() => {
+                setSelectedWhatsAppSegmentId('W0');
+                navigateToState('WHATSAPP_MODULE');
+              }}
+              onSwitchToMaps={() => {
+                setSelectedBusinessLessonId('google_maps');
+                navigateToState('BUSINESS_MAPS_MODULE');
+              }}
+              onComplete={() => {
+                if (learnerProfile) {
+                  const updatedProfile: LearnerProfile = {
+                    ...learnerProfile,
+                    phone_settings_progress: {
+                      completed: true,
+                      last_active_at: new Date().toISOString(),
+                    },
+                  };
+                  setLearnerProfile(updatedProfile);
+                  persistLearnerProfile(updatedProfile);
+                }
+              }}
+            />
+          </div>
+        )}
+
         {/* Module 2: Dedicated WhatsApp Learning Path Screen (Duolingo Style) */}
         {fsmState === 'WHATSAPP_PATH' && (
           <div className="w-full animate-in fade-in duration-200">
@@ -1086,10 +1203,15 @@ export default function FirstTapApp() {
               currentSegmentId={
                 selectedWhatsAppSegmentId || learnerProfile?.whatsapp_progress?.current_segment_id
               }
+              isPhoneBasicsCompleted={Boolean(learnerProfile?.phone_settings_progress?.completed)}
               learnerName={learnerProfile?.name}
               onSelectLesson={(lessonId) => {
-                setSelectedWhatsAppSegmentId(lessonId);
-                navigateToState('WHATSAPP_MODULE');
+                if (lessonId === 'phone_basics') {
+                  navigateToState('PHONE_SETTINGS_MODULE');
+                } else {
+                  setSelectedWhatsAppSegmentId(lessonId as WhatsAppSegmentId);
+                  navigateToState('WHATSAPP_MODULE');
+                }
               }}
               onBack={() => {
                 navigateToState('ASSESSMENT_COMPLETE');
@@ -1453,7 +1575,7 @@ export default function FirstTapApp() {
       </main>
 
       {/* 3. Bottom Controls */}
-      {fsmState !== 'WHATSAPP_MODULE' && fsmState !== 'WHATSAPP_PATH' && fsmState !== 'SPAM_MODULE' && fsmState !== 'SPAM_PATH' && fsmState !== 'BUSINESS_PATH' && fsmState !== 'BUSINESS_WA_MODULE' && fsmState !== 'BUSINESS_MAPS_MODULE' && (
+      {fsmState !== 'WHATSAPP_MODULE' && fsmState !== 'WHATSAPP_PATH' && fsmState !== 'SPAM_MODULE' && fsmState !== 'SPAM_PATH' && fsmState !== 'BUSINESS_PATH' && fsmState !== 'BUSINESS_WA_MODULE' && fsmState !== 'BUSINESS_MAPS_MODULE' && fsmState !== 'PHONE_SETTINGS_MODULE' && (
         <footer className="w-full">
           <ControlBar
             voiceState={voiceState}
