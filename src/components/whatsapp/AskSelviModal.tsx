@@ -25,6 +25,7 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   if (!isOpen) return null;
 
@@ -48,8 +49,6 @@ export const AskSelviModal: React.FC<AskSelviModalProps> = ({
       'How do I send a voice message?',
     ],
   };
-
-  const [isRecording, setIsRecording] = useState(false);
 
   const handleAsk = async (textToAsk: string) => {
     if (!textToAsk.trim() || isLoading) return;

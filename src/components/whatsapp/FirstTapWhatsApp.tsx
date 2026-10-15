@@ -458,12 +458,14 @@ export interface FirstTapWhatsAppProps {
   onExit?: () => void;
 }
 
+const EMPTY_SEGMENTS: WhatsAppSegmentId[] = [];
+
 export const FirstTapWhatsApp: React.FC<FirstTapWhatsAppProps> = ({
   language = 'en',
   category = null,
   initialSegmentId,
-  completedSegments = [],
-  skippedSegments = [],
+  completedSegments = EMPTY_SEGMENTS,
+  skippedSegments = EMPTY_SEGMENTS,
   onProgressUpdate,
   onLogAttempt = () => {},
   onOpenDoubt = () => {},
@@ -499,14 +501,32 @@ export const FirstTapWhatsApp: React.FC<FirstTapWhatsAppProps> = ({
     if (initialSegmentId && initialSegmentId !== state.segmentId) {
       dispatch({ type: 'SET_SEGMENT', segmentId: initialSegmentId });
     }
-  }, [initialSegmentId]);
+  }, [initialSegmentId, state.segmentId]);
 
   useEffect(() => {
-    if (completedSegments) setCompletedList(completedSegments);
+    if (!completedSegments) return;
+    setCompletedList((prev) => {
+      if (
+        prev.length === completedSegments.length &&
+        prev.every((val, idx) => val === completedSegments[idx])
+      ) {
+        return prev;
+      }
+      return completedSegments;
+    });
   }, [completedSegments]);
 
   useEffect(() => {
-    if (skippedSegments) setSkippedList(skippedSegments);
+    if (!skippedSegments) return;
+    setSkippedList((prev) => {
+      if (
+        prev.length === skippedSegments.length &&
+        prev.every((val, idx) => val === skippedSegments[idx])
+      ) {
+        return prev;
+      }
+      return skippedSegments;
+    });
   }, [skippedSegments]);
 
   const emitProgress = (
@@ -875,7 +895,6 @@ export const FirstTapWhatsApp: React.FC<FirstTapWhatsAppProps> = ({
             onClick={() => {
               voiceManager.stop();
               setIsSelviOpen(true);
-              onOpenDoubt?.(`FirstTapMessage: ${currentSegment.code}`);
             }}
             className="flex items-center gap-1 px-2 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold transition cursor-pointer shadow-xs"
             title="Ask Selvi for help"

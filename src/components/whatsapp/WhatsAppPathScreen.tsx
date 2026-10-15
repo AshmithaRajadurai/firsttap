@@ -302,7 +302,6 @@ export const WhatsAppPathScreen: React.FC<WhatsAppPathScreenProps> = ({
               onClick={() => {
                 voiceManager.stop();
                 setIsSelviOpen(true);
-                onOpenDoubt?.('Digital Beginner Adventure overview');
               }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-800 hover:bg-teal-700 text-teal-50 text-xs font-extrabold transition cursor-pointer shadow-xs active:scale-95 border border-teal-600"
               title="Ask Selvi"
