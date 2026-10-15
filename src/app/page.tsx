@@ -57,7 +57,7 @@ export default function FirstTapApp() {
   const [fsm] = useState(() => new FirstTapFSM());
   const [fsmState, setFsmState] = useState<FSMState>('GREETING');
   const [voiceState, setVoiceState] = useState<VoiceEngineState>('IDLE');
-  const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('ta-IN');
+  const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en-IN');
 
   // Global "Ask Selvi" LLM Modal State (available across assessment & all simulation paths)
   const [isGlobalAskSelviOpen, setIsGlobalAskSelviOpen] = useState(false);
@@ -166,20 +166,26 @@ export default function FirstTapApp() {
     }
   }, []);
 
-  // Keep currentLanguage and FSM session language synchronized with learnerProfile preferred_language
+  // Keep learnerProfile.preferred_language synchronized with currentLanguage if a profile exists
   useEffect(() => {
-    if (learnerProfile?.preferred_language && learnerProfile.preferred_language !== currentLanguage) {
-      setCurrentLanguage(learnerProfile.preferred_language);
-      fsm.setSession({ language: learnerProfile.preferred_language });
+    if (learnerProfile && learnerProfile.preferred_language !== currentLanguage) {
+      const updatedProfile = { ...learnerProfile, preferred_language: currentLanguage };
+      setLearnerProfile(updatedProfile);
+      persistLearnerProfile(updatedProfile);
     }
-  }, [learnerProfile?.preferred_language, currentLanguage, fsm]);
+  }, [currentLanguage]);
 
   // Synchronize state and trigger voice output
   const executeTransition = useCallback(
     (transition: FSMTransitionResult) => {
       setFsmState(transition.nextState);
       const session = transition.updatedSession;
-      setCurrentLanguage(session.language);
+      if (session.language) {
+        setCurrentLanguage(session.language);
+        if (learnerProfile && learnerProfile.preferred_language !== session.language) {
+          setLearnerProfile((prev) => (prev ? { ...prev, preferred_language: session.language } : null));
+        }
+      }
       setConsecutiveRetries(session.consecutiveRetries);
       logger.logFSMState(transition.nextState, transition.expectedInputType || 'none');
 
@@ -479,12 +485,20 @@ export default function FirstTapApp() {
       fsmState === 'LANGUAGE_OPTIONS' ||
       fsmState === 'LANGUAGE_SELECT'
     ) {
+      let selectedLang: SupportedLanguage = 'en-IN';
       if (text.includes('தமிழ்') || text.toLowerCase().includes('tamil')) {
-        setCurrentLanguage('ta-IN');
+        selectedLang = 'ta-IN';
       } else if (text.includes('हिंदी') || text.toLowerCase().includes('hindi')) {
-        setCurrentLanguage('hi-IN');
+        selectedLang = 'hi-IN';
       } else if (text.toLowerCase().includes('english')) {
-        setCurrentLanguage('en-IN');
+        selectedLang = 'en-IN';
+      }
+      setCurrentLanguage(selectedLang);
+      fsm.setSession({ language: selectedLang });
+      if (learnerProfile) {
+        const updated = { ...learnerProfile, preferred_language: selectedLang };
+        setLearnerProfile(updated);
+        persistLearnerProfile(updated);
       }
     }
     setRecognizedUserSpeech(text);
@@ -540,8 +554,8 @@ export default function FirstTapApp() {
     return 'WHATSAPP';
   }, [learnerProfile]);
 
-  // Single source of truth for effective language: learner profile preferred_language takes highest precedence
-  const effectiveLanguage: SupportedLanguage = learnerProfile?.preferred_language || currentLanguage || 'en-IN';
+  // Single source of truth for effective language: active session language takes precedence
+  const effectiveLanguage: SupportedLanguage = currentLanguage || learnerProfile?.preferred_language || 'en-IN';
 
   // Exact personalized catchphrase specified in Part 1
   const recommendationGreeting = React.useMemo(() => {
@@ -1118,7 +1132,11 @@ export default function FirstTapApp() {
             {/* Restart Button */}
             <button
               onClick={() => {
-                const restartRes = fsm.startApp();
+                setLearnerProfile(null);
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('firsttap_learner_profile');
+                }
+                const restartRes = fsm.startApp(currentLanguage);
                 executeTransition(restartRes);
               }}
               className="w-full py-2.5 px-6 rounded-2xl bg-slate-950 dark:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-md hover:bg-slate-900 dark:hover:bg-slate-700 transition-all cursor-pointer text-center"

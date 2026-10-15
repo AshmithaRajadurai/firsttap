@@ -93,9 +93,20 @@ export class FirstTapFSM {
   /**
    * 1. APP OPENS: Mascot greets the user
    */
-  public startApp(): FSMTransitionResult {
+  public startApp(language?: SupportedLanguage): FSMTransitionResult {
     this.state = 'GREETING';
     this.session.consecutiveRetries = 0;
+    if (language) {
+      this.session.language = language;
+    }
+    this.session.userName = '';
+    this.session.phoneIndependent = null;
+    this.session.learningGoal = null;
+    this.session.branchAnswer = null;
+    this.session.primaryCategory = null;
+    this.session.startingPath = null;
+    this.session.learnerProfile = null;
+
     const speech = APP_PROMPTS.welcome[this.session.language];
     this.session.lastSpokenText = speech;
 
@@ -134,7 +145,7 @@ export class FirstTapFSM {
   public setLanguageManually(lang: SupportedLanguage): FSMTransitionResult {
     this.session.language = lang;
     this.session.consecutiveRetries = 0;
-    return this.moveToAskName(true);
+    return this.moveToAskName(false);
   }
 
   /**
@@ -305,7 +316,7 @@ export class FirstTapFSM {
     if (matchedLang) {
       this.session.language = matchedLang;
       this.session.consecutiveRetries = 0;
-      return this.moveToAskName(true);
+      return this.moveToAskName(false);
     }
 
     this.session.consecutiveRetries++;
@@ -320,7 +331,7 @@ export class FirstTapFSM {
       speechToSpeak: speech,
       speechSequence: APP_PROMPTS.languageChoiceIntro.promptSequence,
       expectedInputType: 'language',
-      suggestedMood: 'retry',
+      suggestedMood: 'encouraging',
     };
   }
 
