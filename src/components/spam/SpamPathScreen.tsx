@@ -237,9 +237,9 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-[#0F172A] via-[#1A1024] to-[#0A0B10] text-slate-100 flex flex-col font-sans select-none pb-20">
-      {/* 1. TOP STICKY APP-LIKE HEADER BAR */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-rose-900/60 px-4 py-2.5 sm:py-3 shadow-md">
+    <div className="relative min-h-screen bg-gradient-to-b from-[#FFF5F5] via-[#FFF9F9] to-[#FDF2F2] text-slate-900 flex flex-col font-sans select-none pb-20">
+      {/* 1. TOP STICKY APP-LIKE HEADER BAR (LIGHT THEME) */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-rose-200/80 px-4 py-2.5 sm:py-3 shadow-xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
           {/* Back to Dashboard */}
           <button
@@ -247,24 +247,24 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
               spamVoiceManager.stop();
               onBack();
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-rose-950/80 hover:bg-rose-900 text-rose-100 text-xs sm:text-sm font-black shadow-md border border-rose-700/60 transition cursor-pointer min-h-[44px] active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold border border-slate-300 shadow-xs active:scale-95 transition cursor-pointer min-h-[44px]"
             title="Return to FirstTap Dashboard"
           >
-            <ArrowLeft className="w-4 h-4 text-amber-300" />
+            <ArrowLeft className="w-4 h-4 text-slate-700" />
             <span className="hidden xs:inline">{t.backToDashboard}</span>
             <span className="xs:hidden">←</span>
           </button>
 
           {/* Center Title Badge */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 via-red-600 to-amber-500 text-white flex items-center justify-center font-black shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 text-white flex items-center justify-center font-black shadow-xs">
               <ShieldAlert className="w-4 h-4" />
             </div>
             <div className="text-left">
-              <h2 className="text-xs sm:text-sm font-black text-white leading-tight">
+              <h2 className="text-xs sm:text-sm font-black text-slate-900 leading-tight">
                 {t.heading}
               </h2>
-              <span className="text-[10px] text-rose-300 block font-semibold">
+              <span className="text-[10px] text-rose-700 block font-bold">
                 {t.trackBadge}
               </span>
             </div>
@@ -273,8 +273,8 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
           {/* Right Header Status */}
           <div className="flex items-center gap-2">
             {/* Completed badge */}
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-950 border border-rose-600/70 text-rose-200 text-xs font-black shadow-2xs">
-              <Trophy className="w-4 h-4 text-amber-400 fill-amber-400" />
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-100 border border-rose-300 text-rose-950 text-xs font-black shadow-2xs">
+              <Trophy className="w-4 h-4 text-amber-500 fill-amber-400" />
               <span>{completedCount}/8</span>
             </span>
 
@@ -284,7 +284,7 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                 spamVoiceManager.stop();
                 setIsSelviOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-rose-900/90 to-red-900/90 hover:from-rose-800 hover:to-red-800 text-rose-100 text-xs font-extrabold transition cursor-pointer shadow-xs active:scale-95 border border-rose-500/70 min-h-[40px]"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-700 hover:bg-rose-800 text-white text-xs font-extrabold transition cursor-pointer shadow-xs active:scale-95 border border-rose-600 min-h-[40px]"
               title="Ask Selvi"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -297,15 +297,15 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
 
       {/* 2. MAIN ADVENTURE CONTAINER */}
       <main className="max-w-4xl mx-auto w-full px-4 pt-4 sm:pt-6 flex-1 flex flex-col items-center">
-        {/* HERO SECTION: RICH, MODERN & ENGAGING */}
-        <section className="w-full bg-gradient-to-br from-[#2D0A14] via-[#1E112A] to-[#0F172A] text-white p-5 sm:p-6 rounded-3xl shadow-xl border-2 border-rose-500/40 relative overflow-hidden mb-6 text-left">
+        {/* HERO SECTION: RICH, WARM & ENGAGING */}
+        <section className="w-full bg-gradient-to-br from-[#881337] via-[#9F1239] to-[#4C0519] text-white p-5 sm:p-6 rounded-3xl shadow-xl border-2 border-rose-400/50 relative overflow-hidden mb-6 text-left">
           {/* Ambient glows */}
-          <div className="absolute -top-16 -right-16 w-52 h-52 rounded-full bg-rose-500/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 w-44 h-44 rounded-full bg-amber-400/15 blur-2xl pointer-events-none" />
+          <div className="absolute -top-16 -right-16 w-52 h-52 rounded-full bg-rose-400/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-12 -left-12 w-44 h-44 rounded-full bg-amber-400/20 blur-2xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4 justify-between">
             <div className="space-y-1.5 flex-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950/80 border border-rose-400/50 text-xs font-extrabold text-rose-200">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950/80 border border-rose-400/60 text-xs font-extrabold text-rose-200">
                 <Compass className="w-3.5 h-3.5 text-amber-400 animate-spin" />
                 <span>{t.adventureTheme}</span>
               </div>
@@ -348,12 +348,12 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
           </div>
 
           {/* Speech bubble */}
-          <div className="relative z-10 mt-3 p-3 rounded-2xl bg-black/40 border border-rose-500/30 text-xs sm:text-sm text-rose-100 leading-snug font-medium">
+          <div className="relative z-10 mt-3 p-3 rounded-2xl bg-black/30 border border-rose-400/40 text-xs sm:text-sm text-rose-100 leading-snug font-medium">
             &ldquo;{t.selviAdvice.replace('{name}', learnerName || (langKey === 'ta' ? 'தோழரே' : langKey === 'hi' ? 'साथी' : 'Friend'))}&rdquo;
           </div>
 
           {/* Progress summary bar & CTA */}
-          <div className="relative z-10 mt-4 bg-black/50 p-3.5 rounded-2xl border border-rose-500/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative z-10 mt-4 bg-black/40 p-3.5 rounded-2xl border border-rose-400/40 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex-1 w-full space-y-1">
               <div className="flex items-center justify-between text-xs font-black">
                 <span className="text-amber-300 flex items-center gap-1.5">
@@ -364,9 +364,9 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
               </div>
 
               {/* Progress bar */}
-              <div className="h-3 w-full bg-slate-950 rounded-full overflow-hidden p-0.5 border border-rose-600/60 shadow-inner">
+              <div className="h-3 w-full bg-slate-950/80 rounded-full overflow-hidden p-0.5 border border-rose-500/60 shadow-inner">
                 <div
-                  className="h-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
+                  className="h-full bg-gradient-to-r from-amber-300 via-amber-400 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -389,22 +389,22 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
           </div>
         </section>
 
-        {/* 2.1 NATIONAL HELPLINE BANNER */}
-        <div className="w-full max-w-4xl mb-8 flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-red-950/70 via-rose-950/60 to-slate-900 border border-rose-500/30 shadow-md">
+        {/* 2.1 NATIONAL HELPLINE BANNER (LIGHT THEME) */}
+        <div className="w-full max-w-4xl mb-8 flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border-2 border-rose-200 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-600/30 border border-red-500/40 flex items-center justify-center text-amber-300 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-600 shrink-0">
               <Phone className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-white">
+                <span className="text-xs sm:text-sm font-black text-slate-900">
                   {t.helplineText}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
                   Toll-Free 24x7
                 </span>
               </div>
-              <p className="text-[11px] text-rose-200/80 font-medium">
+              <p className="text-[11px] text-slate-600 font-medium">
                 {langKey === 'ta'
                   ? 'பணம் இழந்த 24 மணி நேரத்திற்குள் 1930 எண்ணை அழைத்து பணப் பரிமாற்றத்தை முடக்கலாம்'
                   : langKey === 'hi'
@@ -413,12 +413,12 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
               </p>
             </div>
           </div>
-          <span className="text-[10px] text-slate-400 shrink-0 px-2.5 py-1 rounded-lg bg-black/40 border border-slate-800">
+          <span className="text-[10px] text-slate-500 shrink-0 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-semibold">
             MHA Gov of India
           </span>
         </div>
 
-        {/* 3. FIRSTTAP DIGITAL ADVENTURE: WINDING TRAIL LAYOUT */}
+        {/* 3. FIRSTTAP DIGITAL ADVENTURE: WINDING TRAIL LAYOUT (LIGHT THEME) */}
         <section className="w-full max-w-3xl flex flex-col items-center py-4 relative">
           <div className="w-full space-y-10 sm:space-y-14 relative">
             {sequence.map((stepId, index) => {
@@ -446,7 +446,7 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                   {/* Midpoint Checkpoint Milestone Banner */}
                   {isMidpoint && (
                     <div className="w-full flex justify-center py-2 animate-in fade-in duration-300">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs shadow-lg border-2 border-white">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 font-black text-xs shadow-lg border-2 border-white">
                         <Award className="w-4 h-4 text-slate-950" />
                         <span>{t.milestoneMid}</span>
                       </div>
@@ -461,8 +461,8 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                         <div
                           className={`w-1.5 h-full rounded-full transition-all duration-300 ${
                             isCompleted
-                              ? 'bg-emerald-500 shadow-sm'
-                              : 'border-l-2 border-dashed border-rose-400/80'
+                              ? 'bg-emerald-500 shadow-xs'
+                              : 'border-l-2 border-dashed border-rose-300'
                           }`}
                         />
                       </div>
@@ -479,15 +479,15 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                         }px)`,
                       }}
                     >
-                      {/* DUOLINGO-STYLE 3D CIRCULAR STEPPING STONE */}
+                      {/* DUOLINGO-STYLE 3D CIRCULAR STEPPING STONE (LIGHT THEME) */}
                       <div className="relative flex flex-col items-center shrink-0">
                         {/* Active Beacon Tooltip Floating Above */}
                         {isActive && (
                           <div className="absolute -top-9 z-30 animate-bounce">
-                            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-rose-600 via-red-600 to-amber-500 text-white text-[10px] font-black uppercase tracking-wider shadow-lg border-2 border-white whitespace-nowrap">
+                            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-lg border-2 border-white whitespace-nowrap">
                               {langKey === 'ta' ? 'பாதுகாப்புப் பயிற்சி!' : langKey === 'hi' ? 'सुरक्षा ड्रिल!' : 'DEFEND HERE!'}
                             </span>
-                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-rose-600 mx-auto" />
+                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-amber-400 mx-auto" />
                           </div>
                         )}
 
@@ -498,12 +498,12 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                           }}
                           className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex flex-col items-center justify-center font-black transition-all cursor-pointer active:scale-95 active:translate-y-1 group ${
                             isCompleted
-                              ? 'bg-gradient-to-b from-emerald-500 to-teal-700 text-white border-b-[6px] border-emerald-900 shadow-xl shadow-emerald-600/30 hover:brightness-110'
+                              ? 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white border-b-[6px] border-emerald-800 shadow-xl shadow-emerald-500/20 hover:brightness-110'
                               : isActive
-                              ? 'bg-gradient-to-b from-rose-500 via-red-600 to-rose-700 text-white border-b-[6px] border-rose-950 shadow-2xl shadow-rose-600/50 ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-900 hover:brightness-110'
+                              ? 'bg-gradient-to-b from-rose-500 via-red-500 to-rose-600 text-white border-b-[6px] border-rose-800 shadow-2xl shadow-rose-500/30 ring-4 ring-amber-400 ring-offset-2 ring-offset-rose-50 hover:brightness-110'
                               : isSkipped
-                              ? 'bg-gradient-to-b from-purple-500 to-purple-700 text-white border-b-[6px] border-purple-900 shadow-lg hover:brightness-105'
-                              : 'bg-gradient-to-b from-slate-800 to-slate-900 text-slate-300 border-b-[6px] border-slate-950 shadow-lg hover:border-slate-700'
+                              ? 'bg-gradient-to-b from-purple-400 to-purple-600 text-white border-b-[6px] border-purple-800 shadow-lg hover:brightness-105'
+                              : 'bg-gradient-to-b from-white to-slate-100 text-slate-700 border-b-[6px] border-slate-300 shadow-md hover:border-slate-400'
                           }`}
                           title={`Open ${meta.title[langKey]}`}
                         >
@@ -519,7 +519,7 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                                 ? 'bg-emerald-700 text-white'
                                 : isActive
                                 ? 'bg-amber-400 text-slate-950 font-black'
-                                : 'bg-slate-700 text-white'
+                                : 'bg-slate-200 text-slate-700'
                             }`}
                           >
                             {sequenceNum}
@@ -541,24 +541,24 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                         </button>
                       </div>
 
-                      {/* ADVENTURE CARD: LESSON METADATA (MATCHES BUSINESS & WHATSAPP) */}
+                      {/* ADVENTURE CARD: LESSON METADATA (LIGHT THEME MATCHING WHATSAPP/BUSINESS) */}
                       <div
-                        className={`w-full max-w-md p-4 sm:p-5 rounded-3xl border-2 transition-all duration-300 text-left shadow-lg ${
+                        className={`w-full max-w-md p-4 sm:p-5 rounded-3xl border-2 transition-all duration-300 text-left shadow-md ${
                           isCompleted
-                            ? 'bg-slate-900/90 border-emerald-500/50 hover:border-emerald-400'
+                            ? 'bg-emerald-50/90 border-2 border-emerald-300 hover:border-emerald-400 shadow-sm'
                             : isActive
-                            ? 'bg-gradient-to-br from-rose-950/90 via-purple-950/80 to-slate-900 border-rose-400/70 shadow-rose-500/10 hover:border-rose-300 ring-1 ring-rose-400/30'
+                            ? 'bg-white border-2 border-rose-500 shadow-xl ring-2 ring-rose-400/30'
                             : isSkipped
-                            ? 'bg-slate-900/90 border-purple-500/60'
-                            : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                            ? 'bg-purple-50/90 border-2 border-purple-300 shadow-sm'
+                            : 'bg-white/95 border border-slate-200 shadow-sm hover:border-slate-300'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-900/80 text-rose-300 border border-rose-500/30">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
                               {meta.code} · {t.stepPill.replace('{num}', String(sequenceNum))}
                             </span>
-                            <span className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold">
+                            <span className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
                               <Clock className="w-3 h-3 text-slate-400" />
                               <span>
                                 {meta.estimatedMinutes} {t.minuteShort}
@@ -570,12 +570,12 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                           <span
                             className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
                               isCompleted
-                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : isActive
-                                ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                 : isSkipped
-                                ? 'bg-purple-950 text-purple-300 border border-purple-500/40'
-                                : 'bg-slate-800 text-slate-400'
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
                             }`}
                           >
                             {isCompleted
@@ -588,18 +588,18 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                           </span>
                         </div>
 
-                        <h3 className="text-base sm:text-lg font-black text-white leading-snug">
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
                           {meta.title[langKey]}
                         </h3>
 
-                        <p className="text-xs text-slate-300 leading-relaxed mt-1 font-medium">
+                        <p className="text-xs text-slate-600 leading-relaxed mt-1 font-medium">
                           {meta.description[langKey]}
                         </p>
 
                         {/* Golden Rule Callout Box */}
                         {meta.goldenRule && (
-                          <div className="mt-3 p-2.5 rounded-xl bg-black/40 border border-rose-500/20 text-[11px] text-amber-200/90 font-medium flex items-start gap-2">
-                            <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                          <div className="mt-3 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-[11px] text-amber-950 font-medium flex items-start gap-2">
+                            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                             <span>{meta.goldenRule[langKey]}</span>
                           </div>
                         )}
@@ -614,10 +614,10 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
                             isCompleted
                               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                               : isActive
-                              ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black'
+                              ? 'bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black shadow-lg shadow-rose-600/20'
                               : isSkipped
-                              ? 'bg-purple-700 hover:bg-purple-600 text-white'
-                              : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                              ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                              : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900'
                           }`}
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
