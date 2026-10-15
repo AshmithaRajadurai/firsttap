@@ -96,6 +96,16 @@ declare module 'lucide-react' {
   export const Building2: Icon;
   export const ShoppingBag: Icon;
   export const Edit2: Icon;
+  export const WifiOff: Icon;
+  export const Flashlight: Icon;
+  export const Vibrate: Icon;
+  export const Radio: Icon;
+  export const ChevronDown: Icon;
+  export const ChevronUp: Icon;
+  export const Sun: Icon;
+  export const Sliders: Icon;
+  export const Plane: Icon;
+  export const RotateCw: Icon;
 }
 
 declare module 'canvas-confetti' {

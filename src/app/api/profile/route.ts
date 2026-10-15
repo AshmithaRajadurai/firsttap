@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       whatsapp_progress: profile.whatsapp_progress,
       spam_progress: profile.spam_progress,
       business_progress: profile.business_progress,
+      phone_settings_progress: profile.phone_settings_progress,
     };
 
     currentProfile = structuredProfile;

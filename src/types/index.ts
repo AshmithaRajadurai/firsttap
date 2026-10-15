@@ -105,6 +105,13 @@ export interface BusinessProgress {
   last_active_at?: string;
 }
 
+export interface PhoneSettingsProgress {
+  completed: boolean;
+  score?: number;
+  completed_lessons?: (number | string)[];
+  last_active_at?: string;
+}
+
 export interface LearnerProfile {
   name: string;
   preferred_language: SupportedLanguage;
@@ -118,6 +125,7 @@ export interface LearnerProfile {
   whatsapp_progress?: WhatsAppProgress;
   spam_progress?: SpamProgress;
   business_progress?: BusinessProgress;
+  phone_settings_progress?: PhoneSettingsProgress;
 }
 
 export type FSMState =
@@ -136,6 +144,7 @@ export type FSMState =
   | 'WAITING_FOR_BRANCH_ANSWER'
   | 'SAVING_PROFILE'
   | 'ASSESSMENT_COMPLETE'
+  | 'PHONE_SETTINGS_MODULE'
   | 'WHATSAPP_PATH'
   | 'WHATSAPP_MODULE'
   | 'SPAM_PATH'
@@ -203,6 +212,7 @@ export interface SessionData {
   whatsapp_progress?: WhatsAppProgress;
   spam_progress?: SpamProgress;
   business_progress?: BusinessProgress;
+  phone_settings_progress?: PhoneSettingsProgress;
   // Legacy fields preserved for compatibility
   hasPhone?: boolean | null;
   placementCurrentIndex?: number;
