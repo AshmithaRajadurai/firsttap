@@ -59,10 +59,13 @@ export async function POST(req: NextRequest) {
     const hasValidApiKey = apiKey && apiKey.trim() !== '' && apiKey.trim() !== 'your_sarvam_api_key_here';
 
     // 1. Primary: Sarvam AI Bulbul Text-to-Speech API
-    if (hasValidApiKey) {
+    const cleanText = text.trim();
+    if (hasValidApiKey && cleanText) {
       try {
-        console.log(`[TTS API] Calling Sarvam Bulbul: lang=[${targetLanguage}], speaker=[${targetSpeaker}] (female), text="${text.slice(0, 50)}..."`);
+        console.log(`[TTS API] Calling Sarvam Bulbul: lang=[${targetLanguage}], speaker=[${targetSpeaker}] (female), text="${cleanText.slice(0, 50)}..."`);
         
+        // Truncate to Sarvam safe length (max 500 chars)
+        const sarvamText = cleanText.length > 500 ? cleanText.slice(0, 495) + '...' : cleanText;
         const response = await fetch('https://api.sarvam.ai/text-to-speech', {
           method: 'POST',
           headers: {
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
             'api-subscription-key': apiKey.trim(),
           },
           body: JSON.stringify({
-            text,
+            text: sarvamText,
             language_code: targetLanguage,
             target_language_code: targetLanguage,
             model: 'bulbul:v3',
@@ -110,14 +113,14 @@ export async function POST(req: NextRequest) {
       } catch (sarvamErr) {
         console.warn('[TTS API] Sarvam API network error, proceeding to secondary fallback:', sarvamErr);
       }
-    } else {
+    } else if (!hasValidApiKey) {
       console.log('[TTS API] No active SARVAM_API_KEY detected. Using high-quality female secondary fallback.');
     }
 
     // 2. High-Quality Secondary Fallback: Multi-lingual TTS audio service
     // Generates genuine native Tamil, Hindi, and English spoken female audio without requiring local Windows packs
     try {
-      const encodedText = encodeURIComponent(text.slice(0, 400));
+      const encodedText = encodeURIComponent(cleanText.slice(0, 300));
       const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${langPrefix}&client=tw-ob`;
       
       const ttsRes = await fetch(ttsUrl, {
@@ -151,7 +154,7 @@ export async function POST(req: NextRequest) {
     // 3. Tertiary: Browser Speech Synthesis Fallback
     return NextResponse.json({
       isMock: true,
-      text,
+      text: cleanText,
       language_code: targetLanguage,
       provider: 'browser-speech-synthesis',
       gender: 'female',
@@ -161,9 +164,12 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('TTS API route error:', message);
-    return NextResponse.json(
-      { error: 'Failed to generate speech', details: message },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      isMock: true,
+      provider: 'browser-speech-synthesis',
+      gender: 'female',
+      error: 'Failed to generate remote speech',
+      details: message,
+    });
   }
 }

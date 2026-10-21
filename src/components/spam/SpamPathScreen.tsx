@@ -163,11 +163,31 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
   const [isMascotSpeaking, setIsMascotSpeaking] = useState<boolean>(false);
   const [isSelviOpen, setIsSelviOpen] = useState<boolean>(false);
 
-  const langKey: 'ta' | 'hi' | 'en' = language.startsWith('ta')
-    ? 'ta'
-    : language.startsWith('hi')
-    ? 'hi'
-    : 'en';
+  const [activeLang, setActiveLang] = useState<'ta' | 'hi' | 'en'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('firsttap_preferred_language');
+      if (saved === 'ta-IN') return 'ta';
+      if (saved === 'hi-IN') return 'hi';
+      if (saved === 'en-IN') return 'en';
+    }
+    return language.startsWith('ta') ? 'ta' : language.startsWith('hi') ? 'hi' : 'en';
+  });
+
+  useEffect(() => {
+    const k = language.startsWith('ta') ? 'ta' : language.startsWith('hi') ? 'hi' : 'en';
+    setActiveLang(k);
+  }, [language]);
+
+  const handleLanguageChange = (newLang: 'ta' | 'hi' | 'en') => {
+    spamVoiceManager.stop();
+    setActiveLang(newLang);
+    if (typeof window !== 'undefined') {
+      const fullCode = newLang === 'ta' ? 'ta-IN' : newLang === 'hi' ? 'hi-IN' : 'en-IN';
+      localStorage.setItem('firsttap_preferred_language', fullCode);
+    }
+  };
+
+  const langKey = activeLang;
   const t = UI_TEXT[langKey] || UI_TEXT.en;
 
   const sequence = getRecommendedSpamSequence(category || 'DIGITAL_BEGINNER');
@@ -272,6 +292,43 @@ export const SpamPathScreen: React.FC<SpamPathScreenProps> = ({
 
           {/* Right Header Status */}
           <div className="flex items-center gap-2">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-rose-100 dark:bg-rose-950/80 rounded-full p-0.5 border border-rose-300 dark:border-rose-700">
+              <button
+                onClick={() => handleLanguageChange('ta')}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+                  activeLang === 'ta'
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'text-rose-900 dark:text-rose-300 hover:text-rose-950'
+                }`}
+                title="தமிழ் (Tamil)"
+              >
+                தமிழ்
+              </button>
+              <button
+                onClick={() => handleLanguageChange('en')}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+                  activeLang === 'en'
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'text-rose-900 dark:text-rose-300 hover:text-rose-950'
+                }`}
+                title="English"
+              >
+                EN
+              </button>
+              <button
+                onClick={() => handleLanguageChange('hi')}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+                  activeLang === 'hi'
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'text-rose-900 dark:text-rose-300 hover:text-rose-950'
+                }`}
+                title="हिंदी (Hindi)"
+              >
+                हिंदी
+              </button>
+            </div>
+
             {/* Completed badge */}
             <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-100 border border-rose-300 text-rose-950 text-xs font-black shadow-2xs">
               <Trophy className="w-4 h-4 text-amber-500 fill-amber-400" />

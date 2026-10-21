@@ -161,35 +161,41 @@ class SpamVoiceManager {
         const audio = new Audio(audioUri);
         this.activeAudio = audio;
 
-        const cleanup = () => {
+        let settled = false;
+        const cleanup = (wasCompletedNormally: boolean) => {
+          if (settled) return;
+          settled = true;
+
           if (this.activeAudio === audio) {
             this.activeAudio = null;
           }
-          this.isSpeaking = false;
-          this.isPaused = false;
-          this.notify();
-          if (onEnd) onEnd();
+
+          if (currentSpeechId === this.speechCounter) {
+            this.isSpeaking = false;
+            this.isPaused = false;
+            this.notify();
+            if (wasCompletedNormally && onEnd) {
+              onEnd();
+            }
+          }
           resolve();
         };
 
-        audio.onended = cleanup;
-        audio.onerror = cleanup;
+        audio.onended = () => cleanup(true);
+        audio.onerror = () => cleanup(false);
 
         audio.play().catch((playErr: any) => {
-          if (playErr?.name === 'AbortError') {
-            cleanup();
-            return;
-          }
-          cleanup();
+          cleanup(false);
         });
       });
     }
 
     // 2. Browser SpeechSynthesis for fallback with strict female voice configuration
     if (!this.synth || currentSpeechId !== this.speechCounter || this.isMuted) {
-      this.isSpeaking = false;
-      this.notify();
-      if (onEnd) onEnd();
+      if (currentSpeechId === this.speechCounter) {
+        this.isSpeaking = false;
+        this.notify();
+      }
       return;
     }
 
@@ -203,28 +209,37 @@ class SpamVoiceManager {
 
       configureFemaleUtterance(utterance, bcp47, this.voices);
 
-      const finish = () => {
+      let finished = false;
+      const finish = (wasCompletedNormally: boolean) => {
+        if (finished) return;
+        finished = true;
+
         if (this.activeUtterance === utterance) {
           this.activeUtterance = null;
         }
-        this.isSpeaking = false;
-        this.isPaused = false;
-        this.notify();
-        if (onEnd) onEnd();
+
+        if (currentSpeechId === this.speechCounter) {
+          this.isSpeaking = false;
+          this.isPaused = false;
+          this.notify();
+          if (wasCompletedNormally && onEnd) {
+            onEnd();
+          }
+        }
         resolve();
       };
 
-      utterance.onend = finish;
-      utterance.onerror = finish;
+      utterance.onend = () => finish(true);
+      utterance.onerror = () => finish(false);
 
       try {
         if (this.synth) {
           this.synth.speak(utterance);
         } else {
-          finish();
+          finish(false);
         }
       } catch {
-        finish();
+        finish(false);
       }
     });
   }

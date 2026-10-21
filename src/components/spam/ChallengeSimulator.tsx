@@ -183,7 +183,7 @@ export const ChallengeSimulator: React.FC<ChallengeSimulatorProps> = ({
   const chosenOption = currentScenario?.options.find((opt) => opt.id === selectedOptionId);
 
   return (
-    <div className="relative w-full max-w-[390px] h-[780px] bg-slate-950 rounded-[44px] shadow-2xl overflow-hidden border-[10px] border-slate-900 flex flex-col select-none ring-1 ring-slate-800">
+    <div className="relative w-full max-w-[390px] h-[600px] sm:h-[640px] bg-slate-950 rounded-[44px] shadow-2xl overflow-hidden border-[10px] border-slate-900 flex flex-col select-none ring-1 ring-slate-800">
       {/* Phone Cutout */}
       <div className="absolute top-0 left-0 right-0 h-6 bg-slate-900 z-50 flex items-center justify-center">
         <div className="w-24 h-4 bg-black rounded-b-xl flex items-center justify-center">

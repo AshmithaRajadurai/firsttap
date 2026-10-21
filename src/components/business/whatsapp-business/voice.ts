@@ -191,14 +191,19 @@ class WABusinessVoiceManager {
         this.currentAudio = audio;
 
         audio.onended = () => {
-          this.notifySpeaking(false);
-          this.currentAudio = null;
-          if (onEnd) onEnd();
+          if (this.currentAudio === audio) {
+            this.currentAudio = null;
+          }
+          if (currentSpeechId === this.speechCounter) {
+            this.notifySpeaking(false);
+            if (onEnd) onEnd();
+          }
         };
 
         audio.onerror = () => {
-          this.notifySpeaking(false);
-          this.currentAudio = null;
+          if (this.currentAudio === audio) {
+            this.currentAudio = null;
+          }
           if (currentSpeechId === this.speechCounter) {
             this.fallbackBrowserSpeak(text, bcp47, onEnd, currentSpeechId);
           }
@@ -230,8 +235,9 @@ class WABusinessVoiceManager {
     speechId?: number
   ) {
     if (this.isMuted || !this.synth || (speechId && speechId !== this.speechCounter)) {
-      this.notifySpeaking(false);
-      if (onEnd) onEnd();
+      if (!speechId || speechId === this.speechCounter) {
+        this.notifySpeaking(false);
+      }
       return;
     }
 

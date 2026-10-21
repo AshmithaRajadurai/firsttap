@@ -1,13 +1,17 @@
 import { LanguageCode } from './types';
+import { configureFemaleUtterance, CANONICAL_FEMALE_SPEAKER } from '@/lib/voice/femaleVoice';
 
 class MapsVoiceManager {
   private synth: SpeechSynthesis | null = null;
   private voices: SpeechSynthesisVoice[] = [];
   private isMuted: boolean = false;
   private activeUtterance: SpeechSynthesisUtterance | null = null;
+  private activeAudio: HTMLAudioElement | null = null;
   private audioCtx: AudioContext | null = null;
   private speakingListeners: ((isSpeaking: boolean) => void)[] = [];
   public isCurrentlySpeaking: boolean = false;
+  private speechCounter: number = 0;
+  private audioCache: Map<string, string> = new Map();
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -42,19 +46,6 @@ class MapsVoiceManager {
     this.speakingListeners.forEach((cb) => cb(speaking));
   }
 
-  public getVoiceForLang(lang: LanguageCode): SpeechSynthesisVoice | null {
-    if (this.voices.length === 0) {
-      this.loadVoices();
-    }
-    const targetPrefix = lang === 'ta' ? 'ta' : lang === 'hi' ? 'hi' : 'en';
-    return (
-      this.voices.find((v) => {
-        const l = v.lang.toLowerCase().replace('_', '-');
-        return l.startsWith(targetPrefix);
-      }) || null
-    );
-  }
-
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (muted) {
@@ -63,6 +54,7 @@ class MapsVoiceManager {
   }
 
   public stop() {
+    this.speechCounter++;
     if (this.synth) {
       try {
         this.synth.cancel();
@@ -71,6 +63,11 @@ class MapsVoiceManager {
       }
     }
     this.activeUtterance = null;
+    if (this.activeAudio) {
+      this.activeAudio.pause();
+      this.activeAudio.src = '';
+      this.activeAudio = null;
+    }
     this.notifySpeaking(false);
   }
 
@@ -108,7 +105,9 @@ class MapsVoiceManager {
     lang: LanguageCode = 'en',
     options?: { fallbackTimeoutMs?: number; cancelPrevious?: boolean; rate?: number }
   ): Promise<boolean> {
-    if (this.isMuted) return false;
+    if (this.isMuted || typeof window === 'undefined' || !text.trim()) {
+      return false;
+    }
 
     if (options?.cancelPrevious !== false) {
       this.stop();
@@ -116,51 +115,129 @@ class MapsVoiceManager {
 
     this.playGuidanceChime();
 
-    if (!this.synth) {
-      this.notifySpeaking(true);
-      setTimeout(() => this.notifySpeaking(false), 2500);
+    const currentSpeechId = ++this.speechCounter;
+    this.notifySpeaking(true);
+
+    const bcp47 = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+    const cacheKey = `${bcp47}:${CANONICAL_FEMALE_SPEAKER}:${text}`;
+
+    // 1. Try unified Sarvam AI Bulbul female voice (ishita) via /api/tts
+    let audioUrl = this.audioCache.get(cacheKey);
+
+    if (!audioUrl) {
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            language: bcp47,
+            language_code: bcp47,
+            speaker: CANONICAL_FEMALE_SPEAKER,
+          }),
+        });
+
+        if (res.ok && currentSpeechId === this.speechCounter && !this.isMuted) {
+          const data = await res.json();
+          if (data.audioDataUrl) {
+            audioUrl = data.audioDataUrl;
+          } else if (data.audioBase64) {
+            const format = data.mimeType || data.format || 'audio/wav';
+            audioUrl = `data:${format};base64,${data.audioBase64}`;
+          }
+          if (audioUrl) {
+            this.audioCache.set(cacheKey, audioUrl);
+          }
+        }
+      } catch (err) {
+        console.warn('[MapsVoice] AI TTS fetch error, trying browser synthesis:', err);
+      }
+    }
+
+    if (audioUrl && currentSpeechId === this.speechCounter && !this.isMuted) {
+      return new Promise<boolean>((resolve) => {
+        const audio = new Audio(audioUrl);
+        this.activeAudio = audio;
+
+        let settled = false;
+        const cleanup = (wasCompleted: boolean) => {
+          if (settled) return;
+          settled = true;
+          if (this.activeAudio === audio) {
+            this.activeAudio = null;
+          }
+          if (currentSpeechId === this.speechCounter) {
+            this.notifySpeaking(false);
+          }
+          resolve(wasCompleted && currentSpeechId === this.speechCounter);
+        };
+
+        audio.onended = () => cleanup(true);
+        audio.onerror = () => cleanup(false);
+
+        audio.play().catch((playErr: any) => {
+          cleanup(false);
+        });
+      });
+    }
+
+    if (currentSpeechId !== this.speechCounter || this.isMuted) {
+      this.notifySpeaking(false);
       return false;
     }
 
-    return new Promise((resolve) => {
-      try {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
-        utterance.rate = options?.rate ?? 0.95;
-
-        const voice = this.getVoiceForLang(lang);
-        if (voice) {
-          utterance.voice = voice;
-        }
-
-        let settled = false;
-        const complete = () => {
-          if (!settled) {
-            settled = true;
-            this.notifySpeaking(false);
-            resolve(true);
-          }
-        };
-
-        utterance.onstart = () => {
-          this.notifySpeaking(true);
-        };
-        utterance.onend = complete;
-        utterance.onerror = complete;
-
-        const timer = setTimeout(complete, options?.fallbackTimeoutMs || 10000);
-        this.activeUtterance = utterance;
-
-        if (this.synth) {
-          this.synth.speak(utterance);
-        } else {
-          clearTimeout(timer);
-          complete();
-        }
-      } catch (err) {
-        console.warn('Maps speak error:', err);
+    // 2. Web Speech API Fallback with guaranteed female voice tuning
+    return new Promise<boolean>((resolve) => {
+      if (!this.synth || this.isMuted || currentSpeechId !== this.speechCounter) {
         this.notifySpeaking(false);
         resolve(false);
+        return;
+      }
+
+      let settled = false;
+      const finish = (wasCompleted: boolean) => {
+        if (!settled) {
+          settled = true;
+          this.activeUtterance = null;
+          if (currentSpeechId === this.speechCounter) {
+            this.notifySpeaking(false);
+          }
+          resolve(wasCompleted && currentSpeechId === this.speechCounter);
+        }
+      };
+
+      if (this.voices.length === 0) {
+        this.loadVoices();
+      }
+
+      const timer = setTimeout(() => {
+        finish(true);
+      }, options?.fallbackTimeoutMs || 10000);
+
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        this.activeUtterance = utterance;
+
+        configureFemaleUtterance(utterance, bcp47, this.voices);
+        if (options?.rate) {
+          utterance.rate = options.rate;
+        }
+
+        utterance.onend = () => {
+          clearTimeout(timer);
+          finish(true);
+        };
+
+        utterance.onerror = () => {
+          clearTimeout(timer);
+          finish(false);
+        };
+
+        this.synth.speak(utterance);
+      } catch (err) {
+        clearTimeout(timer);
+        console.warn('Maps speak error:', err);
+        finish(false);
       }
     });
   }

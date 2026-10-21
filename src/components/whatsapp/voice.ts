@@ -78,8 +78,8 @@ class VoiceManager {
     onEnd?: () => void
   ) {
     if (onStart) onStart();
-    this.speakAsync(text, lang).then(() => {
-      if (onEnd) onEnd();
+    this.speakAsync(text, lang).then((completed) => {
+      if (completed && onEnd) onEnd();
     });
   }
 
@@ -87,9 +87,9 @@ class VoiceManager {
     text: string,
     lang: LanguageCode = 'en',
     options?: { fallbackTimeoutMs?: number; cancelPrevious?: boolean }
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (this.isMuted || typeof window === 'undefined' || !text.trim()) {
-      return;
+      return false;
     }
 
     if (options?.cancelPrevious !== false) {
@@ -134,49 +134,46 @@ class VoiceManager {
     }
 
     if (audioUri && currentSpeechId === this.speechCounter && !this.isMuted) {
-      return new Promise<void>((resolve) => {
+      return new Promise<boolean>((resolve) => {
         const audio = new Audio(audioUri);
         this.activeAudio = audio;
 
-        const cleanup = () => {
+        let settled = false;
+        const cleanup = (wasCompleted: boolean) => {
+          if (settled) return;
+          settled = true;
           if (this.activeAudio === audio) {
             this.activeAudio = null;
           }
-          resolve();
+          resolve(wasCompleted && currentSpeechId === this.speechCounter);
         };
 
-        audio.onended = cleanup;
-        audio.onerror = () => {
-          cleanup();
-        };
+        audio.onended = () => cleanup(true);
+        audio.onerror = () => cleanup(false);
 
         audio.play().catch((playErr: any) => {
-          if (playErr?.name === 'AbortError') {
-            cleanup();
-            return;
-          }
-          cleanup();
+          cleanup(false);
         });
       });
     }
 
     if (currentSpeechId !== this.speechCounter || this.isMuted) {
-      return;
+      return false;
     }
 
     // 2. Web Speech API Fallback with guaranteed female voice tuning
-    return new Promise((resolve) => {
+    return new Promise<boolean>((resolve) => {
       if (!this.synth || this.isMuted || currentSpeechId !== this.speechCounter) {
-        resolve();
+        resolve(false);
         return;
       }
 
       let settled = false;
-      const finish = () => {
+      const finish = (wasCompleted: boolean) => {
         if (!settled) {
           settled = true;
           this.activeUtterance = null;
-          resolve();
+          resolve(wasCompleted && currentSpeechId === this.speechCounter);
         }
       };
 
@@ -186,7 +183,7 @@ class VoiceManager {
 
       const fallbackMs = options?.fallbackTimeoutMs ?? 12000;
       const timer = setTimeout(() => {
-        finish();
+        finish(true);
       }, fallbackMs);
 
       try {
@@ -197,18 +194,18 @@ class VoiceManager {
 
         utterance.onend = () => {
           clearTimeout(timer);
-          finish();
+          finish(true);
         };
 
         utterance.onerror = () => {
           clearTimeout(timer);
-          finish();
+          finish(false);
         };
 
         this.synth.speak(utterance);
       } catch {
         clearTimeout(timer);
-        finish();
+        finish(false);
       }
     });
   }

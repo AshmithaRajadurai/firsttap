@@ -48,6 +48,7 @@ import {
   WhatsAppBusinessSimulatorScreen,
   GoogleMapsSimulatorScreen,
 } from '@/components/business';
+import { saveLearnerProfileToFirestore, getLearnerProfileFromFirestore } from '@/lib/firebase';
 import { PhoneSettingsSimulatorScreen } from '@/components/phone-settings';
 import { UI_TRANSLATIONS } from '@/lib/i18n/translations';
 import { CATEGORIES_META, LEARNING_PATHS_META } from '@/lib/lessons/catalog';
@@ -97,16 +98,37 @@ export default function FirstTapApp() {
           setHasStarted(true);
         }
 
+        const savedLang = localStorage.getItem('firsttap_preferred_language');
+        if (savedLang && (savedLang === 'ta-IN' || savedLang === 'hi-IN' || savedLang === 'en-IN')) {
+          setCurrentLanguage(savedLang as SupportedLanguage);
+          fsm.setSession({ language: savedLang as SupportedLanguage });
+        }
+
         const saved = localStorage.getItem('firsttap_learner_profile');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.name) {
+          if (parsed) {
             setLearnerProfile(parsed);
             if (parsed.preferred_language) {
               setCurrentLanguage(parsed.preferred_language);
               fsm.setSession({ language: parsed.preferred_language });
+              localStorage.setItem('firsttap_preferred_language', parsed.preferred_language);
             }
           }
+        } else {
+          // Attempt recovery from Cloud Firestore
+          getLearnerProfileFromFirestore().then((cloudProfile) => {
+            if (cloudProfile) {
+              setLearnerProfile(cloudProfile);
+              if (cloudProfile.preferred_language) {
+                setCurrentLanguage(cloudProfile.preferred_language);
+                fsm.setSession({ language: cloudProfile.preferred_language });
+              }
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('firsttap_learner_profile', JSON.stringify(cloudProfile));
+              }
+            }
+          });
         }
       } catch (err) {
         console.warn('[FirstTap] Could not restore profile or state from URL:', err);
@@ -137,7 +159,7 @@ export default function FirstTapApp() {
     };
   }, []);
 
-  // Persist learner profile to backend API and localStorage
+  // Persist learner profile to backend API, localStorage, and Cloud Firestore
   const persistLearnerProfile = useCallback(async (profile: LearnerProfile) => {
     setIsSavingProfile(true);
     setSaveStatus(null);
@@ -145,6 +167,9 @@ export default function FirstTapApp() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('firsttap_learner_profile', JSON.stringify(profile));
       }
+
+      // Sync to Firebase Cloud Firestore
+      saveLearnerProfileToFirestore(profile);
 
       const res = await fetch('/api/profile', {
         method: 'POST',
@@ -459,9 +484,12 @@ export default function FirstTapApp() {
     setIsGlobalAskSelviOpen(true);
   };
 
-  // Manual language switch from header
+  // Manual language switch from header or module
   const handleManualLanguageChange = (lang: SupportedLanguage) => {
     setCurrentLanguage(lang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('firsttap_preferred_language', lang);
+    }
     if (learnerProfile) {
       const updatedProfile: LearnerProfile = { ...learnerProfile, preferred_language: lang };
       setLearnerProfile(updatedProfile);
@@ -494,6 +522,9 @@ export default function FirstTapApp() {
         selectedLang = 'en-IN';
       }
       setCurrentLanguage(selectedLang);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('firsttap_preferred_language', selectedLang);
+      }
       fsm.setSession({ language: selectedLang });
       if (learnerProfile) {
         const updated = { ...learnerProfile, preferred_language: selectedLang };
@@ -1347,32 +1378,7 @@ export default function FirstTapApp() {
 
         {/* Module 3: Interactive Spam Message Safety Simulator */}
         {fsmState === 'SPAM_MODULE' && (
-          <div className="w-full min-h-screen flex flex-col items-center py-2 animate-in fade-in duration-200">
-            {/* Prominent Sticky Back to Learning Path Button */}
-            <div className="w-full max-w-7xl mx-auto mb-2 px-3 sm:px-6 flex items-center justify-between">
-              <button
-                data-demo-id="global-back-to-spam-path-btn"
-                onClick={() => {
-                  navigateToState('SPAM_PATH');
-                  setMascotMood('idle');
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-red-800 hover:bg-red-700 text-white text-xs sm:text-sm font-black shadow-lg border border-red-500 cursor-pointer active:scale-95 transition"
-                title="Return to Digital Safety Path"
-              >
-                <ArrowLeft className="w-4 h-4 text-amber-300" />
-                <span>
-                  {effectiveLanguage === 'ta-IN'
-                    ? '← கற்றல் பாதைக்கு திரும்பு'
-                    : effectiveLanguage === 'hi-IN'
-                    ? '← लर्निंग पाथ पर वापस'
-                    : '← Back to Learning Path'}
-                </span>
-              </button>
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                {effectiveLanguage === 'ta-IN' ? 'மோசடி பாதுகாப்பு பாடம்' : effectiveLanguage === 'hi-IN' ? 'सुरक्षा पाठ' : 'Safety Lesson'}
-              </span>
-            </div>
-
+          <div className="w-full min-h-screen flex flex-col items-center animate-in fade-in duration-200">
             <FirstTapSpamModule
               language={effectiveLanguage === 'ta-IN' ? 'ta' : effectiveLanguage === 'hi-IN' ? 'hi' : 'en'}
               category={learnerProfile?.primary_category || 'DIGITAL_BEGINNER'}

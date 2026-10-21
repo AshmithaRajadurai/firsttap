@@ -337,14 +337,19 @@ class PhoneSettingsVoiceManager {
         this.currentAudio = audio;
 
         audio.onended = () => {
-          this.notifySpeaking(false);
-          this.currentAudio = null;
-          if (onEnd) onEnd();
+          if (this.currentAudio === audio) {
+            this.currentAudio = null;
+          }
+          if (currentSpeechId === this.speechCounter) {
+            this.notifySpeaking(false);
+            if (onEnd) onEnd();
+          }
         };
 
         audio.onerror = () => {
-          this.notifySpeaking(false);
-          this.currentAudio = null;
+          if (this.currentAudio === audio) {
+            this.currentAudio = null;
+          }
           if (currentSpeechId === this.speechCounter) {
             this.fallbackBrowserSpeak(text, lang, onEnd, currentSpeechId);
           }
@@ -371,8 +376,9 @@ class PhoneSettingsVoiceManager {
 
   private fallbackBrowserSpeak(text: string, lang: LanguageCode, onEnd?: () => void, speechId?: number) {
     if (this.isMuted || !this.synth || (speechId && speechId !== this.speechCounter)) {
-      this.notifySpeaking(false);
-      if (onEnd) setTimeout(onEnd, 1000);
+      if (!speechId || speechId === this.speechCounter) {
+        this.notifySpeaking(false);
+      }
       return;
     }
 
