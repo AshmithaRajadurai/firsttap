@@ -18,7 +18,7 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({ onStart }) => 
       <motion.div
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-amber-200 dark:border-slate-800 text-center space-y-5"
+        className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-center space-y-5"
       >
         {/* Animated Icon Avatar */}
         <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 via-orange-400 to-yellow-300 flex items-center justify-center shadow-lg shadow-orange-500/30">
@@ -27,31 +27,31 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({ onStart }) => 
 
         {/* Multilingual Welcome Heading */}
         <div className="space-y-1">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+          <h2 className="text-2xl font-black text-slate-900">
             FirstTap-க்கு நல்வரவு!
           </h2>
-          <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+          <p className="text-sm font-semibold text-amber-600">
             Welcome to FirstTap • आपका स्वागत है
           </p>
         </div>
 
         {/* Clear Accessible Permission Explanation */}
-        <div className="bg-amber-50 dark:bg-slate-800/60 rounded-2xl p-4 text-left space-y-3 border border-amber-200/80 dark:border-slate-700">
+        <div className="bg-amber-50 rounded-2xl p-4 text-left space-y-3 border border-amber-200/80">
           <div className="flex items-start space-x-3">
-            <Mic className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+            <Mic className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
               <strong>குரல் வழி பயன்பாடு:</strong> நீங்கள் எதையும் தட்டாமல் பேசிக் கற்க மைக்ரோஃபோன் அனுமதி தேவைப்படுகிறது.
             </p>
           </div>
           <div className="flex items-start space-x-3">
-            <Volume2 className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+            <Volume2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
               <strong>Voice-First Learning:</strong> FirstTap will speak and listen to guide you naturally.
             </p>
           </div>
           <div className="flex items-start space-x-3">
-            <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-slate-500">
               உங்கள் குரல் பாதுகாப்பானது. அனுமதியின்றி எந்த பதிவும் எடுக்கப்படாது.
             </p>
           </div>

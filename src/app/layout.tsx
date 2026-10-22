@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ta" className={`${outfit.variable} h-full antialiased`}>
+    <html lang="ta" style={{ colorScheme: 'light' }} className={`${outfit.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-amber-50/30 text-slate-900">
         {children}
       </body>

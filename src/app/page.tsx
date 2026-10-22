@@ -644,7 +644,7 @@ export default function FirstTapApp() {
     fsmState === 'BUSINESS_MAPS_MODULE';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FFFDF9] via-[#FAF5EE] to-[#F5ECE0] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between font-sans selection:bg-amber-200">
+    <div className="min-h-screen bg-gradient-to-b from-[#FFFDF9] via-[#FAF5EE] to-[#F5ECE0] flex flex-col justify-between font-sans selection:bg-amber-200">
       {/* 1. Header (Hidden during dedicated learning modules) */}
       {!isDedicatedLearningModule && (
         <Header
